@@ -64,6 +64,13 @@ function confirmLine(item: Item): void {
   delete drafts.value[item.id];
 }
 
+/** Applies every pending line at once, for blurry photos where many lines are flagged. */
+function confirmAll(): void {
+  for (const item of store.bill.items.filter((candidate) => candidate.needsReview)) {
+    confirmLine(item);
+  }
+}
+
 function saveReceiptTotal(): void {
   const total = receiptTotal.value.trim() ? parseMoney(receiptTotal.value) : null;
   if ((total ?? undefined) !== store.bill.receiptTotal) store.setReceiptTotal(total);
@@ -79,6 +86,22 @@ function saveReceiptTotal(): void {
     />
 
     <ReceiptCheck v-if="store.bill.items.length" />
+
+    <div
+      v-if="reviewCount > 1"
+      class="bg-warning-soft text-warning-ink flex items-center gap-3 rounded-2xl px-4 py-3"
+    >
+      <span class="flex-1 text-sm font-semibold">
+        {{ reviewCount }} lines were hard to read. Check the highlighted prices.
+      </span>
+      <button
+        type="button"
+        class="bg-inverse text-inverse-ink h-9 shrink-0 rounded-full px-3.5 text-[13px] font-bold"
+        @click="confirmAll"
+      >
+        All look right
+      </button>
+    </div>
 
     <ul
       v-if="store.bill.items.length"

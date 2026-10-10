@@ -62,3 +62,25 @@ test('offers manual entry when the photo cannot be read', async ({ page }) => {
   await page.getByRole('button', { name: 'Enter manually' }).click();
   await expect(page.getByRole('heading', { name: 'Add the items' })).toBeVisible();
 });
+
+test('confirms every uncertain line at once', async ({ page }) => {
+  await page.route('**/api/receipts/parse', (route) =>
+    route.fulfill({
+      json: {
+        ...scanned,
+        receipt: {
+          ...scanned.receipt,
+          lines: scanned.receipt.lines.map((line) => ({ ...line, confidence: 'low' })),
+          total: 2710,
+        },
+      },
+    }),
+  );
+
+  await page.goto('/scan');
+  await page.getByTestId('gallery-input').setInputFiles(receiptPhoto);
+
+  await expect(page.getByRole('button', { name: 'Check 3 lines first' })).toBeDisabled();
+  await page.getByRole('button', { name: 'All look right' }).click();
+  await expect(page.getByRole('link', { name: 'Looks good' })).toBeVisible();
+});
