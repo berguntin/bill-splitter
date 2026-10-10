@@ -8,5 +8,6 @@ export type {
   ItemLine,
   UnassignedBreakdown,
 } from './split';
+export { assignedDinerIds, toggleDiner, toggleEveryone } from './assignments';
 export { splitIntoUnits } from './items';
 export { formatMoney, parseMoney } from './money';

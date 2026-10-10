@@ -8,14 +8,16 @@
 - [x] Split engine: integer cents, largest remainder allocation, weighted
       shares, "everyone" items, tips and discounts, receipt total check
 - [x] Lint, format, type-check and test in CI
-- [ ] Design system and screen mock-ups
+- [x] Design tokens and screen mock-ups
 
 ## Phase 1: Local MVP (no backend)
 
-- Create a bill by hand, add diners, assign items, see the summary
-- Split multi-quantity lines into units
-- Persist the current bill in `localStorage`
-- Undo for every assignment action
+- [x] Create a bill by hand, add diners, assign items, see the summary
+- [x] Split multi-quantity lines into units
+- [x] Persist the current bill and recently used names in `localStorage`
+- [x] Undo for every change on the assignment screen
+- [x] Tips (preset percentages or a custom amount), copy and share the split
+- [x] End-to-end test of the whole flow in a mobile browser
 
 ## Phase 2: Receipt scanning
 
