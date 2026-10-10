@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Components use these semantic names only, so the palette can
+ * be swapped (e.g. to match Camarero Digital) without touching any component.
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-surface: #fbf8f4;
+  --color-surface-raised: #ffffff;
+  --color-ink: #1f1a14;
+  --color-ink-muted: #6e655b;
+  --color-line: #ebe4da;
+  --color-accent: #e8553d;
+  --color-accent-ink: #ffffff;
+  --color-success: #2f9e6b;
+  --color-warning: #d9930d;
+
+  --radius-card: 1.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #16130f;
+    --color-surface-raised: #221d18;
+    --color-ink: #f5efe7;
+    --color-ink-muted: #a89e92;
+    --color-line: #342d26;
+    --color-accent: #ff6b52;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
