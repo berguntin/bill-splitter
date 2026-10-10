@@ -8,12 +8,15 @@
     "build": "tsup",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "eval:receipts": "tsx scripts/eval-receipts.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@bill-splitter/core": "workspace:*",
     "cors": "^2.8.6",
     "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
     "zod": "^4.6.5"
   },

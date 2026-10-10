@@ -26,15 +26,21 @@ const progressLabel = computed(() => {
     .join(' · ');
 });
 
+/** Asks before discarding a bill in progress. */
+function confirmDiscard(): boolean {
+  return (
+    !store.hasProgress || window.confirm('Start a new bill? The one in progress will be discarded.')
+  );
+}
+
 function startNewBill(): void {
-  if (
-    store.hasProgress &&
-    !window.confirm('Start a new bill? The one in progress will be discarded.')
-  ) {
-    return;
-  }
+  if (!confirmDiscard()) return;
   store.reset();
   void router.push({ name: 'items' });
+}
+
+function scan(): void {
+  if (confirmDiscard()) void router.push({ name: 'scan' });
 }
 </script>
 
@@ -83,10 +89,9 @@ function startNewBill(): void {
     <div class="flex-1" />
 
     <section class="flex flex-col gap-3" aria-label="Start a new bill">
-      <button type="button" class="btn-primary" disabled>
+      <button type="button" class="btn-primary shadow-accent/30 shadow-lg" @click="scan">
         <AppIcon name="scan" :size="22" />
         Scan receipt
-        <span class="bg-line rounded-full px-2 py-0.5 text-xs">Soon</span>
       </button>
       <button type="button" class="btn-secondary" @click="startNewBill">
         Enter items manually

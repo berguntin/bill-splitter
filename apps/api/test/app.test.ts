@@ -28,4 +28,14 @@ describe('loadConfig', () => {
   it('fails fast on invalid values', () => {
     expect(() => loadConfig({ PORT: 'abc' })).toThrow(/Invalid configuration/);
   });
+
+  it('uses the Claude parser when an API key is set, and the fake one otherwise', () => {
+    expect(loadConfig({ ANTHROPIC_API_KEY: 'sk-test' }).RECEIPT_PARSER).toBe('claude');
+    expect(loadConfig({ ANTHROPIC_API_KEY: ' ' }).RECEIPT_PARSER).toBe('fake');
+  });
+
+  it('refuses to run without a real receipt parser in production', () => {
+    expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => loadConfig({ RECEIPT_PARSER: 'claude' })).toThrow(/ANTHROPIC_API_KEY/);
+  });
 });

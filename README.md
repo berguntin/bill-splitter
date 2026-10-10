@@ -2,8 +2,8 @@
 
 Scan a restaurant receipt, tap who had what, and see exactly what each person owes.
 
-> Status: early development. Bills can be entered by hand and split on the device;
-> receipt scanning comes next. See the [roadmap](docs/ROADMAP.md).
+> Status: early development. Receipts can be scanned or entered by hand and split
+> on the device; sharing via QR comes next. See the [roadmap](docs/ROADMAP.md).
 
 ## Features (planned)
 
@@ -38,6 +38,10 @@ pnpm install
 pnpm dev          # web on http://localhost:5173, API on http://localhost:3000
 ```
 
+Without configuration the API uses a fake receipt reader that always returns
+the same sample receipt, so the whole app works offline. To read real receipts,
+copy `apps/api/.env.example` to `apps/api/.env` and set `ANTHROPIC_API_KEY`.
+
 | Command                                     | What it does                               |
 | ------------------------------------------- | ------------------------------------------ |
 | `pnpm dev`                                  | Runs the web app and the API in watch mode |
@@ -48,6 +52,19 @@ pnpm dev          # web on http://localhost:5173, API on http://localhost:3000
 | `pnpm format`                               | Formats the whole repository with Prettier |
 | `pnpm check`                                | Everything CI runs, except the build       |
 | `pnpm build`                                | Builds the web app and the API             |
+
+## How receipts are read
+
+The web app downscales the photo to 1600 px and sends it to
+`POST /api/receipts/parse`. The API asks Claude Haiku 5.5 to transcribe the
+receipt into a fixed JSON shape (structured outputs), with amounts copied as
+printed and parsed into cents on our side. If the lines do not add up to the
+printed total, some lines are uncertain, or the model declines, the API retries
+with Claude Sonnet 5.5 and keeps the more trustworthy result. Uncertain lines
+are highlighted for a person to check. Photos are never stored.
+
+`pnpm --filter @bill-splitter/api eval:receipts` measures accuracy on a private
+set of real receipts (see `apps/api/eval/README.md`).
 
 ## How the split works
 

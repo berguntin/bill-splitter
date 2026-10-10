@@ -29,6 +29,12 @@
   --color-inverse-ink: #f5efe7;
   --color-inverse-muted: #c9bfb3;
 
+  /* Camera screen: dark in both themes so the photo stands out. */
+  --color-camera: #0f0d0b;
+  --color-camera-panel: #2a241e;
+  --color-camera-ink: #f5efe7;
+  --color-camera-muted: #c9bfb3;
+
   --color-success-soft: #e3f4ea;
   --color-success-ink: #145c3c;
   --color-success: #2f9e6b;
