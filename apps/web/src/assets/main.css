@@ -5,29 +5,58 @@
  * be swapped (e.g. to match Camarero Digital) without touching any component.
  */
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
   --color-surface: #fbf8f4;
   --color-surface-raised: #ffffff;
+  --color-surface-sunken: #efe8de;
   --color-ink: #1f1a14;
+  --color-ink-soft: #4a433b;
   --color-ink-muted: #6e655b;
   --color-line: #ebe4da;
-  --color-accent: #e8553d;
-  --color-accent-ink: #ffffff;
-  --color-success: #2f9e6b;
-  --color-warning: #d9930d;
+  --color-line-soft: #f1ebe2;
+  --color-line-strong: #cfc5b8;
 
-  --radius-card: 1.25rem;
+  /* Filled buttons. White text on it meets WCAG AA. */
+  --color-accent: #cf4229;
+  --color-accent-strong: #a8331f;
+  --color-accent-ink: #ffffff;
+  /* Accent-colored text on the surface. */
+  --color-accent-text: #b8391f;
+
+  /* High-contrast panels such as the summary total. */
+  --color-inverse: #1f1a14;
+  --color-inverse-ink: #f5efe7;
+  --color-inverse-muted: #c9bfb3;
+
+  --color-success-soft: #e3f4ea;
+  --color-success-ink: #145c3c;
+  --color-success: #2f9e6b;
+  --color-warning-soft: #fdf3df;
+  --color-warning-ink: #7a5208;
+  --color-warning-line: #e2b04f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --color-surface: #16130f;
     --color-surface-raised: #221d18;
+    --color-surface-sunken: #2b251f;
     --color-ink: #f5efe7;
+    --color-ink-soft: #d6ccc0;
     --color-ink-muted: #a89e92;
     --color-line: #342d26;
-    --color-accent: #ff6b52;
+    --color-line-soft: #2b251f;
+    --color-line-strong: #4d443a;
+    --color-accent-text: #ff8a73;
+    --color-inverse: #f5efe7;
+    --color-inverse-ink: #1f1a14;
+    --color-inverse-muted: #5c544b;
+    --color-success-soft: #173326;
+    --color-success-ink: #8fdcb3;
+    --color-warning-soft: #3a2c10;
+    --color-warning-ink: #f2c56b;
+    --color-warning-line: #8a6420;
   }
 }
 
@@ -41,6 +70,36 @@
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-accent;
+    @apply outline-accent outline-2 outline-offset-2;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent text-accent-ink flex h-15 w-full items-center justify-center gap-2.5 rounded-[20px] px-6 text-[17px] font-bold transition active:scale-[0.98];
+  }
+
+  .btn-primary:disabled {
+    @apply bg-surface-sunken text-ink-muted pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply border-line bg-surface-raised text-ink flex h-14 w-full items-center justify-center gap-2 rounded-[20px] border px-6 text-base font-semibold transition active:scale-[0.98];
+  }
+
+  .icon-btn {
+    @apply border-line bg-surface-raised text-ink flex size-11 shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-40;
+  }
+
+  .card {
+    @apply border-line bg-surface-raised rounded-[18px] border;
+  }
+
+  .field {
+    @apply border-line bg-surface-raised text-ink placeholder:text-ink-muted focus:border-ink h-13 w-full rounded-2xl border-[1.5px] px-4 text-base font-medium outline-none;
+  }
+
+  .section-label {
+    @apply text-ink-muted text-[13px] font-bold tracking-[0.06em] uppercase;
   }
 }

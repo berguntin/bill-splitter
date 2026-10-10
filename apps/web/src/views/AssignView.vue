@@ -1,0 +1,176 @@
+<script setup lang="ts">
+import { assignedDinerIds, type Item } from '@bill-splitter/core';
+import { computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
+import DinerAvatar from '@/components/DinerAvatar.vue';
+import StepHeader from '@/components/StepHeader.vue';
+import { initial, money } from '@/lib/format';
+import { dinerSwatch } from '@/lib/palette';
+import { useBillStore } from '@/stores/bill';
+
+const store = useBillStore();
+const currency = computed(() => store.bill.currency);
+
+const totals = computed(
+  () => new Map(store.breakdown.diners.map((diner) => [diner.dinerId, diner.itemsSubtotal])),
+);
+
+/** Amount each diner pays for an item, from the engine's breakdown. */
+const shareAmounts = computed(() => {
+  const amounts = new Map<string, number>();
+  for (const diner of store.breakdown.diners) {
+    for (const line of diner.items) amounts.set(`${line.itemId}:${diner.dinerId}`, line.amount);
+  }
+  return amounts;
+});
+
+const pendingCount = computed(() => store.pendingItemIds.length);
+
+function selectedIds(item: Item): string[] {
+  return assignedDinerIds(item.assignment, store.bill.diners);
+}
+
+function status(item: Item): string {
+  const ids = selectedIds(item);
+  if (ids.length === 0) return 'Tap who had it';
+  const amount = money(shareAmounts.value.get(`${item.id}:${ids[0]}`) ?? 0, currency.value);
+  if (item.assignment.mode === 'everyone') return `Everyone · ${amount} each`;
+  const names = store.bill.diners
+    .filter((diner) => ids.includes(diner.id))
+    .map((diner) => diner.name);
+  if (names.length === 1) return `${names[0]} pays it all`;
+  return `${names.join(' & ')} · ${amount} each`;
+}
+
+function chipStyle(color: string, selected: boolean): Record<string, string> {
+  if (!selected) return {};
+  const swatch = dinerSwatch(color);
+  return { backgroundColor: swatch.fill, borderColor: swatch.fill, color: swatch.ink };
+}
+
+function canSplit(item: Item): boolean {
+  return Number.isInteger(item.quantity) && item.quantity > 1;
+}
+</script>
+
+<template>
+  <main class="flex min-h-dvh flex-col gap-4 pt-14">
+    <StepHeader title="Who had what?" step="Step 3 of 3" :back="{ name: 'diners' }">
+      <template #actions>
+        <button
+          type="button"
+          class="icon-btn"
+          aria-label="Undo"
+          :disabled="!store.canUndo"
+          @click="store.undo()"
+        >
+          <AppIcon name="undo" :size="18" />
+        </button>
+      </template>
+    </StepHeader>
+
+    <ul class="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1" aria-label="Running totals">
+      <li
+        v-for="diner in store.bill.diners"
+        :key="diner.id"
+        class="card flex min-w-[76px] flex-1 flex-col items-center gap-1 px-1 py-2.5"
+      >
+        <DinerAvatar :diner="diner" :size="32" />
+        <span class="text-ink-muted max-w-full truncate text-xs font-semibold">
+          {{ diner.name }}
+        </span>
+        <span class="text-sm font-extrabold tabular-nums">
+          {{ money(totals.get(diner.id) ?? 0, currency) }}
+        </span>
+      </li>
+    </ul>
+
+    <ul class="flex flex-col gap-2.5" aria-label="Items">
+      <li
+        v-for="item in store.bill.items"
+        :key="item.id"
+        class="bg-surface-raised flex flex-col gap-2.5 rounded-[18px] px-4 py-3.5"
+        :class="
+          selectedIds(item).length ? 'border-line border' : 'border-warning-line border-[1.5px]'
+        "
+      >
+        <div class="flex items-baseline gap-2">
+          <span class="flex-1 text-[15px] font-bold">
+            <span v-if="item.quantity !== 1" class="text-ink-muted">{{ item.quantity }}× </span>
+            {{ item.name }}
+          </span>
+          <span class="text-[15px] font-bold tabular-nums">
+            {{ money(item.total, currency) }}
+          </span>
+        </div>
+
+        <div
+          class="flex flex-wrap items-center gap-2"
+          role="group"
+          :aria-label="`Who had ${item.name}`"
+        >
+          <button
+            v-for="diner in store.bill.diners"
+            :key="diner.id"
+            type="button"
+            class="text-ink-muted border-line-strong bg-surface-raised flex size-11 items-center justify-center rounded-full border-[1.5px] border-dashed text-[15px] font-bold transition active:scale-95"
+            :class="{ 'border-solid': selectedIds(item).includes(diner.id) }"
+            :style="chipStyle(diner.color, selectedIds(item).includes(diner.id))"
+            :aria-label="diner.name"
+            :aria-pressed="selectedIds(item).includes(diner.id)"
+            @click="store.toggleDiner(item.id, diner.id)"
+          >
+            {{ initial(diner.name) }}
+          </button>
+          <button
+            type="button"
+            class="ml-auto h-11 rounded-full border-[1.5px] px-4 text-sm font-bold transition active:scale-95"
+            :class="
+              item.assignment.mode === 'everyone'
+                ? 'bg-inverse text-inverse-ink border-inverse'
+                : 'border-line bg-surface-raised'
+            "
+            :aria-pressed="item.assignment.mode === 'everyone'"
+            @click="store.toggleEveryone(item.id)"
+          >
+            All
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+          <span
+            class="text-[13px] font-semibold"
+            :class="selectedIds(item).length ? 'text-ink-muted' : 'text-warning-ink'"
+          >
+            {{ status(item) }}
+          </span>
+          <button
+            v-if="canSplit(item)"
+            type="button"
+            class="text-accent-text flex h-8 items-center gap-1 text-[13px] font-bold"
+            @click="store.splitItem(item.id)"
+          >
+            <AppIcon name="split" :size="16" />
+            Split into {{ item.quantity }}
+          </button>
+        </div>
+      </li>
+    </ul>
+
+    <div class="bg-surface sticky bottom-0 mt-auto flex flex-col gap-2 pt-3 pb-8">
+      <template v-if="pendingCount">
+        <button type="button" class="btn-primary" disabled>
+          {{ pendingCount }} {{ pendingCount === 1 ? 'item' : 'items' }} left to assign
+        </button>
+        <button
+          type="button"
+          class="text-accent-text h-11 text-sm font-bold"
+          @click="store.assignRestToEveryone()"
+        >
+          Split the rest among everyone
+        </button>
+      </template>
+      <RouterLink v-else :to="{ name: 'summary' }" class="btn-primary">See the split</RouterLink>
+    </div>
+  </main>
+</template>

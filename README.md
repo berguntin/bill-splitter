@@ -2,7 +2,8 @@
 
 Scan a restaurant receipt, tap who had what, and see exactly what each person owes.
 
-> Status: early development (phase 0, foundations). See the [roadmap](docs/ROADMAP.md).
+> Status: early development. Bills can be entered by hand and split on the device;
+> receipt scanning comes next. See the [roadmap](docs/ROADMAP.md).
 
 ## Features (planned)
 
@@ -37,15 +38,16 @@ pnpm install
 pnpm dev          # web on http://localhost:5173, API on http://localhost:3000
 ```
 
-| Command          | What it does                               |
-| ---------------- | ------------------------------------------ |
-| `pnpm dev`       | Runs the web app and the API in watch mode |
-| `pnpm test`      | Runs every package's unit tests            |
-| `pnpm typecheck` | Type-checks every package                  |
-| `pnpm lint`      | Lints the whole repository                 |
-| `pnpm format`    | Formats the whole repository with Prettier |
-| `pnpm check`     | Everything CI runs, except the build       |
-| `pnpm build`     | Builds the web app and the API             |
+| Command                                     | What it does                               |
+| ------------------------------------------- | ------------------------------------------ |
+| `pnpm dev`                                  | Runs the web app and the API in watch mode |
+| `pnpm test`                                 | Runs every package's unit tests            |
+| `pnpm --filter @bill-splitter/web test:e2e` | Runs the browser tests (Playwright)        |
+| `pnpm typecheck`                            | Type-checks every package                  |
+| `pnpm lint`                                 | Lints the whole repository                 |
+| `pnpm format`                               | Formats the whole repository with Prettier |
+| `pnpm check`                                | Everything CI runs, except the build       |
+| `pnpm build`                                | Builds the web app and the API             |
 
 ## How the split works
 
