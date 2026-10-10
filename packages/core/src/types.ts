@@ -35,6 +35,8 @@ export interface Item {
   /** Line total as printed on the receipt. Source of truth for the split. */
   total: Cents;
   assignment: Assignment;
+  /** Set when the line was read from a photo with low confidence. */
+  needsReview?: boolean;
 }
 
 export type AdjustmentKind = 'tip' | 'service' | 'discount';
@@ -62,4 +64,8 @@ export interface Bill {
   adjustments: Adjustment[];
   /** Total printed on the receipt, used to detect reading errors. */
   receiptTotal?: Cents;
+  /** How the items were entered. Missing means by hand. */
+  source?: 'manual' | 'scan';
+  /** Business name, when the bill was scanned from a receipt. */
+  merchant?: string;
 }

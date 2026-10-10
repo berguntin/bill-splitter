@@ -6,6 +6,7 @@ export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/scan', name: 'scan', component: () => import('@/views/ScanView.vue') },
     { path: '/bill/items', name: 'items', component: () => import('@/views/ItemsView.vue') },
     { path: '/bill/people', name: 'diners', component: () => import('@/views/DinersView.vue') },
     {

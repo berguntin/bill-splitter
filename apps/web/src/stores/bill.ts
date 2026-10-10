@@ -10,6 +10,7 @@ import {
   type DinerId,
   type Item,
   type ItemId,
+  type ScannedReceipt,
 } from '@bill-splitter/core';
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -67,6 +68,7 @@ export const useBillStore = defineStore('bill', () => {
 
   const breakdown = computed(() => computeBreakdown(bill.value));
   const canUndo = computed(() => history.value.length > 0);
+  const isScanned = computed(() => bill.value.source === 'scan');
   const hasProgress = computed(() => bill.value.items.length > 0 || bill.value.diners.length > 0);
   const pendingItemIds = computed(() => breakdown.value.unassigned.itemIds);
   const tip = computed<Tip | null>(() => {
@@ -116,6 +118,49 @@ export const useBillStore = defineStore('bill', () => {
       draft.items.push(item);
     });
     return item.id;
+  }
+
+  function updateItemTotal(id: ItemId, total: Cents): void {
+    if (!findItem(id)) return;
+    commit((draft) => {
+      const item = draft.items.find((candidate) => candidate.id === id)!;
+      item.total = total;
+      item.unitPrice = Math.round(total / item.quantity);
+      delete item.needsReview;
+    });
+  }
+
+  /** Marks a line read with low confidence as checked by a person. */
+  function confirmItem(id: ItemId): void {
+    if (!findItem(id)?.needsReview) return;
+    commit((draft) => {
+      delete draft.items.find((candidate) => candidate.id === id)!.needsReview;
+    });
+  }
+
+  /** Replaces the current bill with one built from a scanned receipt. */
+  function loadScannedReceipt(receipt: ScannedReceipt): void {
+    const next: Bill = {
+      ...emptyBill(),
+      source: 'scan',
+      currency: receipt.currency,
+      items: receipt.lines.map((line) => {
+        const item: Item = {
+          id: createId(),
+          name: line.name,
+          quantity: line.quantity,
+          unitPrice: Math.round(line.total / line.quantity),
+          total: line.total,
+          assignment: { mode: 'unassigned' },
+        };
+        if (line.confidence === 'low') item.needsReview = true;
+        return item;
+      }),
+    };
+    if (receipt.total !== null) next.receiptTotal = receipt.total;
+    if (receipt.merchant) next.merchant = receipt.merchant;
+    bill.value = next;
+    history.value = [];
   }
 
   function removeItem(id: ItemId): void {
@@ -209,6 +254,7 @@ export const useBillStore = defineStore('bill', () => {
     breakdown,
     canUndo,
     hasProgress,
+    isScanned,
     pendingItemIds,
     recentNames,
     tip,
@@ -216,6 +262,9 @@ export const useBillStore = defineStore('bill', () => {
     reset,
     setReceiptTotal,
     addItem,
+    updateItemTotal,
+    confirmItem,
+    loadScannedReceipt,
     removeItem,
     splitItem,
     addDiner,

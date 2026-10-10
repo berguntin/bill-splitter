@@ -1,18 +1,49 @@
 import { z } from 'zod';
 
-const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
-  CORS_ORIGINS: z
-    .string()
-    .default('http://localhost:5173')
-    .transform((value) =>
-      value
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    ),
-});
+const optionalString = z
+  .string()
+  .optional()
+  .transform((value) => (value?.trim() ? value.trim() : undefined));
+
+const schema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().positive().default(3000),
+    CORS_ORIGINS: z
+      .string()
+      .default('http://localhost:5173')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean),
+      ),
+    /** Hops of reverse proxies in front of the API, so rate limits see real client IPs. */
+    TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
+    ANTHROPIC_API_KEY: optionalString,
+    /** `claude` reads receipts with the Claude API; `fake` returns a sample receipt. */
+    RECEIPT_PARSER: z.enum(['claude', 'fake']).optional(),
+    /** Receipt scans allowed per client IP every 10 minutes. */
+    RECEIPT_RATE_LIMIT: z.coerce.number().int().positive().default(20),
+  })
+  .transform((config, context) => {
+    const receiptParser = config.RECEIPT_PARSER ?? (config.ANTHROPIC_API_KEY ? 'claude' : 'fake');
+    if (receiptParser === 'claude' && !config.ANTHROPIC_API_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ANTHROPIC_API_KEY'],
+        message: 'ANTHROPIC_API_KEY is required when RECEIPT_PARSER is "claude"',
+      });
+    }
+    if (receiptParser === 'fake' && config.NODE_ENV === 'production') {
+      context.addIssue({
+        code: 'custom',
+        path: ['RECEIPT_PARSER'],
+        message: 'The fake receipt parser cannot run in production; set ANTHROPIC_API_KEY',
+      });
+    }
+    return { ...config, RECEIPT_PARSER: receiptParser };
+  });
 
 export type Config = z.infer<typeof schema>;
 

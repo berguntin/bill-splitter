@@ -164,4 +164,48 @@ describe('useBillStore', () => {
     expect(store.bill.items).toEqual([]);
     expect(store.canUndo).toBe(false);
   });
+
+  describe('scanned receipts', () => {
+    const receipt = {
+      merchant: 'Casa Lola',
+      currency: 'EUR',
+      lines: [
+        { name: 'Caña', quantity: 2, total: 480, confidence: 'high' as const },
+        { name: 'Pulpo', quantity: 1, total: 1850, confidence: 'low' as const },
+      ],
+      total: 2330,
+    };
+
+    it('replaces the bill with the scanned lines', () => {
+      const store = useBillStore();
+      store.addItem({ name: 'Old item', total: 100 });
+
+      store.loadScannedReceipt(receipt);
+
+      expect(store.isScanned).toBe(true);
+      expect(store.bill.merchant).toBe('Casa Lola');
+      expect(store.bill.receiptTotal).toBe(2330);
+      expect(store.bill.items.map((item) => [item.name, item.total, item.needsReview])).toEqual([
+        ['Caña', 480, undefined],
+        ['Pulpo', 1850, true],
+      ]);
+      expect(store.canUndo).toBe(false);
+    });
+
+    it('clears the review flag when a line is confirmed or corrected', () => {
+      const store = useBillStore();
+      store.loadScannedReceipt({
+        ...receipt,
+        lines: receipt.lines.map((line) => ({ ...line, confidence: 'low' as const })),
+      });
+      const [cana, pulpo] = store.bill.items;
+
+      store.confirmItem(cana!.id);
+      store.updateItemTotal(pulpo!.id, 1950);
+
+      expect(store.bill.items.every((item) => !item.needsReview)).toBe(true);
+      expect(store.bill.items[1]?.total).toBe(1950);
+      expect(store.breakdown.receiptDifference).toBe(-100);
+    });
+  });
 });

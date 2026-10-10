@@ -10,4 +10,6 @@ export type {
 } from './split';
 export { assignedDinerIds, toggleDiner, toggleEveryone } from './assignments';
 export { splitIntoUnits } from './items';
+export { receiptIssues, receiptIssueScore } from './receipt';
+export type { ReceiptIssue, ScannedLine, ScannedReceipt } from './receipt';
 export { formatMoney, parseMoney } from './money';
