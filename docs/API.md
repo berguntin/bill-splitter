@@ -1,7 +1,18 @@
 # API
 
 Base path: `/api`. All bodies are JSON unless noted. Errors look like
-`{ "error": "<code>" }`.
+`{ "error": "<code>" }`; unexpected ones (5xx) also carry the `requestId`.
+
+Every response has an `X-Request-Id` header. Clients may send their own
+(6 to 64 letters, digits or dashes) and the API reuses it, so both sides log the
+same id. The web app shows it next to errors as a reference to quote.
+
+## Health
+
+### `GET /api/health`
+
+`200 { "status": "ok" }` when the API can reach its database,
+`503 { "status": "unavailable", "database": "unreachable" }` otherwise.
 
 ## Receipts
 

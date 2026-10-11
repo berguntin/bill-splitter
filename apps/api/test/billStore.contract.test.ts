@@ -1,6 +1,7 @@
 import type { Bill } from '@bill-splitter/core';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createMongoBillStore } from '../src/bills/mongo';
+import { createLogger } from '../src/observability/logger';
 import { BILL_ID_PATTERN, createMemoryBillStore, type BillStore } from '../src/bills/store';
 
 const bill: Bill = {
@@ -31,6 +32,10 @@ function contract(name: string, makeStore: () => Promise<BillStore>) {
     };
     afterAll(async () => {
       await Promise.all(stores.map((created) => created.close()));
+    });
+
+    it('answers a ping when it is reachable', async () => {
+      await expect((await store()).ping()).resolves.toBeUndefined();
     });
 
     it('creates a bill with a short id and an owner token', async () => {
@@ -81,7 +86,12 @@ contract('memory', async () => createMemoryBillStore({ ttlMs: 60_000 }));
 const mongoUri = process.env.TEST_MONGODB_URI;
 if (mongoUri) {
   contract('mongodb', async () =>
-    createMongoBillStore({ uri: mongoUri, ttlMs: 60_000, database: `test_${Date.now()}` }),
+    createMongoBillStore({
+      uri: mongoUri,
+      ttlMs: 60_000,
+      database: `test_${Date.now()}`,
+      logger: createLogger({ NODE_ENV: 'test' }),
+    }),
   );
 } else {
   describe.skip('mongodb bill store (set TEST_MONGODB_URI to run)', () => {

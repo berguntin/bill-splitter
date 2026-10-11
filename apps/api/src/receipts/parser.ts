@@ -27,13 +27,31 @@ export type Extractor = (request: {
   model: string;
   effort: Effort;
 }) => Promise<
-  { status: 'ok'; answer: ModelReceipt } | { status: 'refused' } | { status: 'unreadable' }
+  ({ status: 'ok'; answer: ModelReceipt } | { status: 'refused' } | { status: 'unreadable' }) & {
+    usage?: TokenUsage;
+  }
 >;
 
-export type ParseOutcome =
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** What one model call did, for logs: which model, how it went, how long and how many tokens. */
+export interface ParseAttempt {
+  model: string;
+  status: 'ok' | 'not_a_receipt' | 'refused' | 'unreadable' | 'error';
+  /** Issue types found in this attempt's result, e.g. `total_mismatch`. */
+  issues?: ReceiptIssue['type'][];
+  durationMs: number;
+  usage?: TokenUsage;
+}
+
+export type ParseOutcome = (
   | { status: 'ok'; receipt: ScannedReceipt; issues: ReceiptIssue[]; model: string }
   | { status: 'not_a_receipt' }
-  | { status: 'unreadable' };
+  | { status: 'unreadable' }
+) & { attempts?: ParseAttempt[] };
 
 export interface ReceiptParser {
   parse(image: ReceiptImage): Promise<ParseOutcome>;
@@ -45,45 +63,79 @@ export interface ReceiptParser {
  * uncertain lines, a refusal...). The more trustworthy of the two wins.
  */
 export function createReceiptParser(extract: Extractor): ReceiptParser {
-  async function attempt(image: ReceiptImage, model: string, effort: Effort) {
-    const result = await extract({ image, model, effort });
-    if (result.status !== 'ok') return result;
-    if (!result.answer.is_receipt) return { status: 'not_a_receipt' as const };
-    const receipt = toScannedReceipt(result.answer);
-    const issues = receiptIssues(receipt);
-    return { status: 'ok' as const, receipt, issues, model, score: receiptIssueScore(issues) };
+  async function attempt(
+    image: ReceiptImage,
+    model: string,
+    effort: Effort,
+    attempts: ParseAttempt[],
+  ) {
+    const started = performance.now();
+    const log: ParseAttempt = { model, status: 'error', durationMs: 0 };
+    attempts.push(log);
+    try {
+      const result = await extract({ image, model, effort });
+      if (result.usage) log.usage = result.usage;
+      if (result.status !== 'ok') {
+        log.status = result.status;
+        return { status: result.status };
+      }
+      if (!result.answer.is_receipt) {
+        log.status = 'not_a_receipt';
+        return { status: 'not_a_receipt' as const };
+      }
+      const receipt = toScannedReceipt(result.answer);
+      const issues = receiptIssues(receipt);
+      log.status = 'ok';
+      log.issues = issues.map((issue) => issue.type);
+      return { status: 'ok' as const, receipt, issues, model, score: receiptIssueScore(issues) };
+    } finally {
+      log.durationMs = Math.round(performance.now() - started);
+    }
   }
 
   return {
     async parse(image) {
+      const attempts: ParseAttempt[] = [];
       let primary: Awaited<ReturnType<typeof attempt>> | null = null;
       try {
-        primary = await attempt(image, PRIMARY_MODEL, 'low');
-      } catch (error) {
+        primary = await attempt(image, PRIMARY_MODEL, 'low', attempts);
+      } catch {
         // Let the fallback model try; if it fails too, its error propagates.
-        console.warn(`${PRIMARY_MODEL} failed, trying ${FALLBACK_MODEL}`, error);
+        // The failed attempt is still listed in `attempts`.
       }
 
-      if (primary?.status === 'ok' && primary.score === 0) return withoutScore(primary);
-      if (primary?.status === 'not_a_receipt') return primary;
+      if (primary?.status === 'ok' && primary.score === 0) return finish(primary, attempts);
+      if (primary?.status === 'not_a_receipt') return { status: 'not_a_receipt', attempts };
 
-      const fallback = await attempt(image, FALLBACK_MODEL, 'medium');
+      const fallback = await attempt(image, FALLBACK_MODEL, 'medium', attempts);
       const candidates = [primary, fallback].filter(
         (candidate): candidate is Extract<typeof fallback, { status: 'ok' }> =>
           candidate?.status === 'ok',
       );
       if (candidates.length > 0) {
         const best = candidates.reduce((a, b) => (b.score < a.score ? b : a));
-        return withoutScore(best);
+        return finish(best, attempts);
       }
-      return fallback.status === 'not_a_receipt' ? fallback : { status: 'unreadable' };
+      return {
+        status: fallback.status === 'not_a_receipt' ? 'not_a_receipt' : 'unreadable',
+        attempts,
+      };
     },
   };
 }
 
-function withoutScore<T extends { score: number }>({
-  score: _score,
-  ...rest
-}: T): Omit<T, 'score'> {
-  return rest;
+function finish(
+  {
+    score: _score,
+    ...result
+  }: {
+    status: 'ok';
+    receipt: ScannedReceipt;
+    issues: ReceiptIssue[];
+    model: string;
+    score: number;
+  },
+  attempts: ParseAttempt[],
+): ParseOutcome {
+  return { ...result, attempts };
 }

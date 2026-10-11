@@ -21,6 +21,8 @@ export interface BillStore {
   create(bill: Bill): Promise<{ record: StoredBill; ownerToken: string }>;
   get(id: string): Promise<StoredBill | null>;
   update(id: string, ownerToken: string, bill: Bill): Promise<UpdateResult>;
+  /** Resolves when the storage is reachable; rejects otherwise. */
+  ping(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -103,6 +105,8 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
       entry.expiresAt = new Date(updatedAt.getTime() + options.ttlMs);
       return publicView(entry);
     },
+
+    async ping() {},
 
     async close() {
       entries.clear();

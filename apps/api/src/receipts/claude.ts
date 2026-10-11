@@ -31,13 +31,12 @@ export function createClaudeExtractor(client: Anthropic): Extractor {
       ],
     });
 
-    console.info(
-      `receipt parsed model=${model} stop=${response.stop_reason} ` +
-        `in=${response.usage.input_tokens} out=${response.usage.output_tokens}`,
-    );
-
-    if (response.stop_reason === 'refusal') return { status: 'refused' };
-    if (response.parsed_output === null) return { status: 'unreadable' };
-    return { status: 'ok', answer: response.parsed_output };
+    const usage = {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+    if (response.stop_reason === 'refusal') return { status: 'refused', usage };
+    if (response.parsed_output === null) return { status: 'unreadable', usage };
+    return { status: 'ok', answer: response.parsed_output, usage };
   };
 }

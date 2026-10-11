@@ -100,7 +100,9 @@ describe('createReceiptParser', () => {
       [PRIMARY_MODEL]: { status: 'ok', answer: answer({ is_receipt: false, lines: [] }) },
     });
 
-    expect(await createReceiptParser(extract).parse(image)).toEqual({ status: 'not_a_receipt' });
+    expect(await createReceiptParser(extract).parse(image)).toMatchObject({
+      status: 'not_a_receipt',
+    });
     expect(extract).toHaveBeenCalledTimes(1);
   });
 
@@ -110,7 +112,7 @@ describe('createReceiptParser', () => {
       [FALLBACK_MODEL]: { status: 'refused' },
     });
 
-    expect(await createReceiptParser(extract).parse(image)).toEqual({ status: 'unreadable' });
+    expect(await createReceiptParser(extract).parse(image)).toMatchObject({ status: 'unreadable' });
   });
 
   it('propagates the error when both models fail', async () => {
@@ -118,8 +120,31 @@ describe('createReceiptParser', () => {
       [PRIMARY_MODEL]: new Error('down'),
       [FALLBACK_MODEL]: new Error('still down'),
     });
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(createReceiptParser(extract).parse(image)).rejects.toThrow('still down');
+  });
+
+  it('lists every model call with its outcome, issues and token usage', async () => {
+    const extract = extractorReturning({
+      [PRIMARY_MODEL]: new Error('overloaded'),
+      [FALLBACK_MODEL]: {
+        status: 'ok',
+        answer: answer({ total: '12,30' }),
+        usage: { inputTokens: 3800, outputTokens: 400 },
+      },
+    });
+
+    const outcome = await createReceiptParser(extract).parse(image);
+
+    expect(outcome.attempts).toEqual([
+      { model: PRIMARY_MODEL, status: 'error', durationMs: expect.any(Number) },
+      {
+        model: FALLBACK_MODEL,
+        status: 'ok',
+        issues: ['total_mismatch'],
+        durationMs: expect.any(Number),
+        usage: { inputTokens: 3800, outputTokens: 400 },
+      },
+    ]);
   });
 });
