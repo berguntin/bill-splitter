@@ -54,7 +54,9 @@ totals are required.
 
 Amounts are integer cents. Optional fields: `diners[]` (`id`, `name`, `color`),
 item `id`, `quantity` (default 1), `unitPrice`, `assignment` (default
-`{ "mode": "unassigned" }`), `adjustments[]`, `receiptTotal`.
+`{ "mode": "unassigned" }`), `adjustments[]`, `receiptTotal`, and `groups[]`
+(`{ id, dinerIds }`, two or more diners who pay together; ids of unknown diners
+are dropped).
 
 - `201` `{ id, ownerToken, bill, version, updatedAt, expiresAt }`. Keep
   `ownerToken` secret; the people at the table open `/b/<id>` in the web app.

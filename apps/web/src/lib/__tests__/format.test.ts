@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fractionLabel, initial } from '../format';
+import { fractionLabel, initial, joinNames } from '../format';
 
 describe('fractionLabel', () => {
   it.each([
@@ -21,5 +21,13 @@ describe('initial', () => {
   it('uses the first letter, upper-cased', () => {
     expect(initial(' lucía')).toBe('L');
     expect(initial('')).toBe('?');
+  });
+});
+
+describe('joinNames', () => {
+  it('joins names the way people say them', () => {
+    expect(joinNames(['Ana'])).toBe('Ana');
+    expect(joinNames(['Ana', 'Ben'])).toBe('Ana & Ben');
+    expect(joinNames(['Ana', 'Ben', 'Cleo'])).toBe('Ana, Ben & Cleo');
   });
 });

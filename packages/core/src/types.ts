@@ -55,6 +55,16 @@ export interface Adjustment {
   distribution: 'proportional' | 'equal';
 }
 
+/**
+ * Diners who settle up as one, e.g. a couple, or a friend paying for another.
+ * Only changes how totals are presented: each member's share stays the same.
+ */
+export interface DinerGroup {
+  id: string;
+  /** Two or more diners; a diner belongs to at most one group. */
+  dinerIds: DinerId[];
+}
+
 export interface Bill {
   id: string;
   /** ISO 4217 code, e.g. `EUR`. */
@@ -68,4 +78,6 @@ export interface Bill {
   source?: 'manual' | 'scan' | 'import';
   /** Business name, when the bill was scanned from a receipt. */
   merchant?: string;
+  /** Diners paying together. Missing means everyone pays on their own. */
+  groups?: DinerGroup[];
 }

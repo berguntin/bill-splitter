@@ -71,6 +71,54 @@ describe('useBillStore', () => {
     expect(store.bill.items).toEqual([]);
   });
 
+  describe('paying together', () => {
+    function table() {
+      const store = useBillStore();
+      const [ana, ben, cleo] = ['Ana', 'Ben', 'Cleo'].map((name) => store.addDiner(name)!);
+      store.toggleEveryone(store.addItem({ name: 'Pizza', total: 1500 }));
+      return { store, ana: ana!, ben: ben!, cleo: cleo! };
+    }
+
+    it('adds up a group and undoes it', () => {
+      const { store, ana, ben } = table();
+
+      const groupId = store.groupDiners([ana.id, ben.id])!;
+      expect(store.payers).toEqual([
+        expect.objectContaining({
+          kind: 'group',
+          groupId,
+          dinerIds: [ana.id, ben.id],
+          total: 1000,
+        }),
+        expect.objectContaining({ kind: 'diner', total: 500 }),
+      ]);
+
+      store.undo();
+      expect(store.payers.map((payer) => payer.kind)).toEqual(['diner', 'diner', 'diner']);
+    });
+
+    it('separates a group, and the separation can be undone too', () => {
+      const { store, ana, ben } = table();
+      const groupId = store.groupDiners([ana.id, ben.id])!;
+
+      store.ungroup(groupId);
+      expect(store.payers).toHaveLength(3);
+
+      store.undo();
+      expect(store.payers[0]).toMatchObject({ kind: 'group', groupId });
+    });
+
+    it('ignores a group of one and forgets removed members', () => {
+      const { store, ana, ben } = table();
+      expect(store.groupDiners([ana.id])).toBeNull();
+      expect(store.bill.groups).toBeUndefined();
+
+      store.groupDiners([ana.id, ben.id]);
+      store.removeDiner(ben.id);
+      expect(store.bill.groups).toEqual([]);
+    });
+  });
+
   it('splits multi-quantity lines into units in place', () => {
     const store = useBillStore();
     store.addItem({ name: 'Bread', total: 200 });

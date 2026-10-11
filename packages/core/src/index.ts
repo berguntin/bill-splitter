@@ -10,6 +10,8 @@ export type {
 } from './split';
 export { assignedDinerIds, toggleDiner, toggleEveryone } from './assignments';
 export { anonymizeBill } from './anonymize';
+export { groupDiners, payers, pruneGroups, ungroup } from './groups';
+export type { Payer } from './groups';
 export { splitIntoUnits } from './items';
 export { receiptIssues, receiptIssueScore } from './receipt';
 export type { ReceiptIssue, ScannedLine, ScannedReceipt } from './receipt';

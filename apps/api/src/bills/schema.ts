@@ -1,4 +1,11 @@
-import type { Adjustment, Assignment, Bill, Diner, Item } from '@bill-splitter/core';
+import {
+  pruneGroups,
+  type Adjustment,
+  type Assignment,
+  type Bill,
+  type Diner,
+  type Item,
+} from '@bill-splitter/core';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
@@ -57,6 +64,10 @@ export const BillInputSchema = z.object({
   receiptTotal: cents.optional(),
   source: z.enum(['manual', 'scan', 'import']).optional(),
   merchant: z.string().trim().min(1).max(120).optional(),
+  groups: z
+    .array(z.object({ id, dinerIds: z.array(id).min(2).max(30) }))
+    .max(15)
+    .optional(),
 });
 
 export type BillInput = z.infer<typeof BillInputSchema>;
@@ -84,5 +95,11 @@ export function toBill(id: string, input: BillInput): Bill {
   if (input.receiptTotal !== undefined) bill.receiptTotal = input.receiptTotal;
   if (input.source !== undefined) bill.source = input.source;
   if (input.merchant !== undefined) bill.merchant = input.merchant;
+  if (input.groups?.length) {
+    bill.groups = pruneGroups(
+      input.groups,
+      bill.diners.map((diner) => diner.id),
+    );
+  }
   return bill;
 }

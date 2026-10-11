@@ -1,6 +1,10 @@
 import {
   computeBreakdown,
+  groupDiners as groupDinersIn,
+  payers as payersOf,
+  pruneGroups,
   splitIntoUnits,
+  ungroup as ungroupIn,
   toggleDiner as toggleDinerIn,
   toggleEveryone as toggleEveryoneIn,
   type Adjustment,
@@ -67,6 +71,8 @@ export const useBillStore = defineStore('bill', () => {
   watch(recentNames, (value) => saveJson(RECENT_NAMES_STORAGE_KEY, value), { deep: true });
 
   const breakdown = computed(() => computeBreakdown(bill.value));
+  /** Who pays what: diners on their own and groups paying together. */
+  const payers = computed(() => payersOf(bill.value, breakdown.value));
   const canUndo = computed(() => history.value.length > 0);
   const isScanned = computed(() => bill.value.source === 'scan');
   const hasProgress = computed(() => bill.value.items.length > 0 || bill.value.diners.length > 0);
@@ -198,6 +204,31 @@ export const useBillStore = defineStore('bill', () => {
     // Items assigned only to this diner fall back to "unassigned" in the engine.
     commit((draft) => {
       draft.diners = draft.diners.filter((diner) => diner.id !== id);
+      if (draft.groups) {
+        draft.groups = pruneGroups(
+          draft.groups,
+          draft.diners.map((diner) => diner.id),
+        );
+      }
+    });
+  }
+
+  /** Makes these diners pay together, merging any groups they are already in. */
+  function groupDiners(dinerIds: DinerId[]): string | null {
+    const id = createId();
+    const groups = groupDinersIn(bill.value.groups ?? [], dinerIds, id);
+    if (!groups.some((group) => group.id === id)) return null;
+    commit((draft) => {
+      draft.groups = groups;
+    });
+    return id;
+  }
+
+  /** Each member of the group pays on their own again. */
+  function ungroup(groupId: string): void {
+    if (!bill.value.groups?.some((group) => group.id === groupId)) return;
+    commit((draft) => {
+      draft.groups = ungroupIn(draft.groups ?? [], groupId);
     });
   }
 
@@ -255,6 +286,7 @@ export const useBillStore = defineStore('bill', () => {
     canUndo,
     hasProgress,
     isScanned,
+    payers,
     pendingItemIds,
     recentNames,
     tip,
@@ -269,6 +301,8 @@ export const useBillStore = defineStore('bill', () => {
     splitItem,
     addDiner,
     removeDiner,
+    groupDiners,
+    ungroup,
     toggleDiner,
     toggleEveryone,
     assignRestToEveryone,
