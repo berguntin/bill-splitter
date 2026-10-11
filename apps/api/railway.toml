@@ -1,0 +1,12 @@
+# Railway service "api". In the service settings, keep Root Directory empty
+# (the whole monorepo is needed) and set the config file to /apps/api/railway.toml.
+
+[build]
+# --prod=false keeps dev dependencies (tsup) even if NODE_ENV=production.
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm --filter @bill-splitter/api build"
+watchPatterns = ["apps/api/**", "packages/core/**", "pnpm-lock.yaml"]
+
+[deploy]
+startCommand = "pnpm --filter @bill-splitter/api start"
+healthcheckPath = "/api/health"
+restartPolicyType = "ON_FAILURE"
