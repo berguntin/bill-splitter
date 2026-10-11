@@ -9,4 +9,9 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   /** Base URL of the API. Empty means the same origin (proxied in development). */
   readonly VITE_API_URL?: string;
+  /** Sentry project DSN (Vue). Without it, errors are not reported. */
+  readonly VITE_SENTRY_DSN?: string;
 }
+
+/** Commit the app was built from, or `dev`. */
+declare const __APP_RELEASE__: string;

@@ -7,6 +7,7 @@ import type { Dependencies } from './dependencies';
 import { createBillsRouter } from './routes/bills';
 import { httpLogger } from './observability/http';
 import { REQUEST_ID_HEADER } from './observability/requestId';
+import { reportError } from './observability/sentry';
 import { createHealthRouter } from './routes/health';
 import { createReceiptsRouter } from './routes/receipts';
 
@@ -43,6 +44,7 @@ export function createApp(config: Config, dependencies: Dependencies): express.E
         { err: error, upstream: { status: error.status, requestId: error.requestID } },
         'Claude API error',
       );
+      reportError(error, { requestId: String(req.id), route: req.path });
       res.status(502).json({ error: 'upstream_error', requestId: req.id });
       return;
     }
@@ -60,6 +62,7 @@ export function createApp(config: Config, dependencies: Dependencies): express.E
       return;
     }
     req.log.error({ err: error }, 'unhandled error');
+    reportError(error, { requestId: String(req.id), route: req.path });
     res.status(500).json({ error: 'internal_error', requestId: req.id });
   };
   app.use(errorHandler);

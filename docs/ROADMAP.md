@@ -61,7 +61,7 @@
 - [x] Request ids from the web app to the API logs, shown next to errors
 - [x] Structured JSON logs (pino) with scan and sharing events, no personal data
 - [x] Health check that covers the database, for uptime monitoring
-- [ ] Sentry (EU region) for the web app and the API: releases per deploy,
+- [x] Sentry (EU region) for the web app and the API: releases per deploy,
       source maps, session replay on error, alerts
 
 ## Phase 7: Bug reports

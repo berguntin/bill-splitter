@@ -107,6 +107,12 @@ describe('loadConfig', () => {
     expect(loadConfig({ ANTHROPIC_API_KEY: ' ' }).RECEIPT_PARSER).toBe('fake');
   });
 
+  it('takes the release from Railway unless set explicitly', () => {
+    expect(loadConfig({}).RELEASE).toBeUndefined();
+    expect(loadConfig({ RAILWAY_GIT_COMMIT_SHA: 'abc123' }).RELEASE).toBe('abc123');
+    expect(loadConfig({ RAILWAY_GIT_COMMIT_SHA: 'abc123', RELEASE: 'v1' }).RELEASE).toBe('v1');
+  });
+
   it('treats an empty LOG_LEVEL as unset', () => {
     expect(loadConfig({ LOG_LEVEL: '' }).LOG_LEVEL).toBeUndefined();
     expect(loadConfig({ LOG_LEVEL: 'debug' }).LOG_LEVEL).toBe('debug');

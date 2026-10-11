@@ -31,6 +31,13 @@ const schema = z
     MONGODB_DATABASE: z.string().trim().min(1).default('bill-splitter'),
     /** Days a shared bill is kept after its last update. */
     BILL_TTL_DAYS: z.coerce.number().positive().default(7),
+    /** Sentry project DSN. Without it, errors are only logged. */
+    SENTRY_DSN: optionalString,
+    /** Environment name shown in Sentry; defaults to NODE_ENV. */
+    SENTRY_ENVIRONMENT: optionalString,
+    /** Version of the running code. Railway sets RAILWAY_GIT_COMMIT_SHA. */
+    RELEASE: optionalString,
+    RAILWAY_GIT_COMMIT_SHA: optionalString,
     /** Minimum log level. Defaults to `info`, and to `silent` in tests. */
     LOG_LEVEL: z.preprocess(
       (value) => (typeof value === 'string' && !value.trim() ? undefined : value),
@@ -60,7 +67,8 @@ const schema = z
         message: 'MONGODB_URI is required in production; shared bills would be lost on restart',
       });
     }
-    return { ...config, RECEIPT_PARSER: receiptParser };
+    const { RAILWAY_GIT_COMMIT_SHA: commit, ...rest } = config;
+    return { ...rest, RELEASE: config.RELEASE ?? commit, RECEIPT_PARSER: receiptParser };
   });
 
 export type Config = z.infer<typeof schema>;
