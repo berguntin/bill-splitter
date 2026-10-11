@@ -35,8 +35,7 @@ function toRecord(document: BillDocument): StoredBill {
 export async function createMongoBillStore(options: {
   uri: string;
   ttlMs: number;
-  /** Defaults to the database named in the URI. */
-  database?: string;
+  database: string;
 }): Promise<BillStore> {
   const client = await MongoClient.connect(options.uri);
   const bills: Collection<BillDocument> = client

@@ -27,6 +27,8 @@ const schema = z
     RECEIPT_RATE_LIMIT: z.coerce.number().int().positive().default(20),
     /** MongoDB connection string for shared bills. Without it, bills live in memory. */
     MONGODB_URI: optionalString,
+    /** Database for shared bills, so connection strings without one (as Atlas gives) work. */
+    MONGODB_DATABASE: z.string().trim().min(1).default('bill-splitter'),
     /** Days a shared bill is kept after its last update. */
     BILL_TTL_DAYS: z.coerce.number().positive().default(7),
   })

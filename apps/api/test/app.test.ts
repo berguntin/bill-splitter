@@ -35,6 +35,11 @@ describe('loadConfig', () => {
     expect(loadConfig({ ANTHROPIC_API_KEY: ' ' }).RECEIPT_PARSER).toBe('fake');
   });
 
+  it('uses its own database name unless told otherwise', () => {
+    expect(loadConfig({}).MONGODB_DATABASE).toBe('bill-splitter');
+    expect(loadConfig({ MONGODB_DATABASE: 'staging' }).MONGODB_DATABASE).toBe('staging');
+  });
+
   it('refuses to run in production without a real receipt parser or database', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/ANTHROPIC_API_KEY/);
     expect(() => loadConfig({ NODE_ENV: 'production', ANTHROPIC_API_KEY: 'sk-test' })).toThrow(

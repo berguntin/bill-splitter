@@ -24,7 +24,11 @@ export async function createDependencies(config: Config): Promise<Dependencies> 
 
   const ttlMs = config.BILL_TTL_DAYS * DAY_MS;
   const billStore = config.MONGODB_URI
-    ? await createMongoBillStore({ uri: config.MONGODB_URI, ttlMs })
+    ? await createMongoBillStore({
+        uri: config.MONGODB_URI,
+        database: config.MONGODB_DATABASE,
+        ttlMs,
+      })
     : createMemoryBillStore({ ttlMs });
 
   return { receiptParser, billStore };
