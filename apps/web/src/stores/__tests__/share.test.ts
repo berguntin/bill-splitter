@@ -2,7 +2,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { useBillStore } from '../bill';
-import { REMOTE_POLL_MS, SYNC_DELAY_MS, useShareStore } from '../share';
+import { FALLBACK_POLL_MS } from '@/lib/followSharedBill';
+import { SYNC_DELAY_MS, useShareStore } from '../share';
 
 type Handler = (url: string, init: RequestInit) => { status: number; body?: unknown };
 
@@ -174,7 +175,7 @@ describe('useShareStore', () => {
       const undoSteps = bill.canUndo;
 
       remoteGroups = [{ id: 'guest-group', dinerIds: [ana.id, ben.id] }];
-      await vi.advanceTimersByTimeAsync(REMOTE_POLL_MS);
+      await vi.advanceTimersByTimeAsync(FALLBACK_POLL_MS);
 
       expect(bill.bill.groups).toEqual(remoteGroups);
       expect(bill.canUndo).toBe(undoSteps);

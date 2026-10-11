@@ -9,6 +9,7 @@ import {
   type Failure,
   type ShareError,
 } from '@/lib/api';
+import { followSharedBill } from '@/lib/followSharedBill';
 import { loadJson, saveJson } from '@/lib/storage';
 import { useBillStore } from './bill';
 
@@ -16,9 +17,6 @@ export const SHARE_STORAGE_KEY = 'bill-splitter/share/v1';
 
 /** Wait this long after the last edit before pushing, so a burst of taps is one request. */
 export const SYNC_DELAY_MS = 800;
-
-/** How often the owner checks whether guests changed who pays together. */
-export const REMOTE_POLL_MS = 5000;
 
 interface ShareLink {
   /** Local bill this link belongs to; a new bill means a new link. */
@@ -208,39 +206,33 @@ export const useShareStore = defineStore('share', () => {
     { deep: true },
   );
 
-  // Pick up groups that guests set, while the bill is shared and the app is visible.
-  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  // Pick up groups that guests set, live while the bill is shared and the app is visible.
+  let unfollow: (() => void) | null = null;
   let etag: string | null = null;
 
-  async function pollRemote(): Promise<void> {
+  async function pullRemote(): Promise<void> {
     const current = activeLink.value;
-    if (current && !inFlight && !document.hidden) {
-      const result = await fetchSharedBill(current.remoteId, etag);
-      if (result.ok && result.changed && activeLink.value === current) {
-        etag = result.etag;
-        await reconcileGroups(result.value.bill);
-      }
+    if (!current || inFlight) return;
+    const result = await fetchSharedBill(current.remoteId, etag);
+    if (result.ok && result.changed && activeLink.value === current) {
+      etag = result.etag;
+      await reconcileGroups(result.value.bill);
     }
-    schedulePoll();
-  }
-
-  function schedulePoll(): void {
-    clearTimeout(pollTimer);
-    if (isShared.value) pollTimer = setTimeout(() => void pollRemote(), REMOTE_POLL_MS);
   }
 
   watch(
     () => activeLink.value?.remoteId,
-    () => {
+    (remoteId) => {
+      unfollow?.();
+      unfollow = null;
       etag = null;
-      schedulePoll();
+      if (remoteId) unfollow = followSharedBill(remoteId, () => void pullRemote());
     },
     { immediate: true },
   );
 
   function stopSharing(): void {
     clearTimeout(timer);
-    clearTimeout(pollTimer);
     link.value = null;
     status.value = 'idle';
     error.value = null;

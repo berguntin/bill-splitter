@@ -2,7 +2,14 @@ import express, { Router, type Request } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { BillInputSchema, GroupsSchema, toBill } from '../bills/schema';
+import type { BillEvents } from '../bills/events';
 import { BILL_ID_PATTERN, newBillId, type BillStore, type StoredBill } from '../bills/store';
+
+/** Comment lines keep idle connections from being closed by proxies. */
+export const HEARTBEAT_MS = 25_000;
+/** Caps open streams, so a flood of connections cannot exhaust the server. */
+export const MAX_STREAMS_PER_BILL = 50;
+export const MAX_STREAMS = 2000;
 
 const BodySchema = z.object({ bill: BillInputSchema });
 
@@ -54,7 +61,7 @@ function summarize({ id, version, bill }: StoredBill) {
   };
 }
 
-export function createBillsRouter(store: BillStore): Router {
+export function createBillsRouter(store: BillStore, events: BillEvents): Router {
   const router = Router();
   const json = express.json({ limit: '200kb' });
 
@@ -70,6 +77,7 @@ export function createBillsRouter(store: BillStore): Router {
     // The store assigns the real id; this placeholder is replaced on insert.
     const { record, ownerToken } = await store.create(toBill(newBillId(), parsed.data.bill));
     req.log.info({ bill: summarize(record) }, 'bill shared');
+    events.publish(record.id, { version: record.version });
     res.status(201).json({ ...publicBody(record), ownerToken });
   });
 
@@ -98,6 +106,7 @@ export function createBillsRouter(store: BillStore): Router {
     else if (result === 'forbidden') res.status(403).json({ error: 'forbidden' });
     else {
       req.log.debug({ bill: summarize(result) }, 'bill updated');
+      events.publish(result.id, { version: result.version });
       res.json(publicBody(result));
     }
   });
@@ -120,7 +129,49 @@ export function createBillsRouter(store: BillStore): Router {
       return;
     }
     req.log.info({ bill: summarize(record), groups: parsed.data.groups.length }, 'groups changed');
+    events.publish(record.id, { version: record.version });
     res.json(publicBody(record));
+  });
+
+  /**
+   * Server-sent events: a `version` event now and on every change, so open
+   * pages refetch at once instead of waiting for their next poll.
+   */
+  router.get('/:id/events', limiter(600), async (req, res) => {
+    const id = billIdParam(req);
+    const record = BILL_ID_PATTERN.test(id) ? await store.get(id) : null;
+    if (!record) {
+      res.status(404).json({ error: 'not_found' });
+      return;
+    }
+    if (events.count() >= MAX_STREAMS || events.count(id) >= MAX_STREAMS_PER_BILL) {
+      // Clients fall back to polling.
+      res.status(503).json({ error: 'too_many_streams' });
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      // Stops reverse proxies from buffering the stream.
+      'X-Accel-Buffering': 'no',
+    });
+    const send = (version: number) =>
+      res.write(`event: version\ndata: ${JSON.stringify({ version })}\n\n`);
+    // Ask clients to wait a little before reconnecting after a drop.
+    res.write('retry: 3000\n\n');
+    send(record.version);
+
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS);
+    const unsubscribe = events.subscribe(id, {
+      onChange: (change) => send(change.version),
+      onClose: () => res.end(),
+    });
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   });
 
   // Guests on the same restaurant wifi share an IP; each polls ~120 times per 10 minutes.

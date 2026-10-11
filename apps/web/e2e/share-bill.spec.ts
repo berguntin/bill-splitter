@@ -44,6 +44,29 @@ test('guests follow a shared bill as the owner changes it', async ({ page, brows
   await guestContext.close();
 });
 
+test('guests see changes live, well before the next poll', async ({ page, browser }) => {
+  await createBill(page);
+  await page.getByRole('link', { name: 'Share with the table' }).click();
+  await expect(page.getByRole('status')).toHaveText('Live');
+  const url = (await page.getByTestId('share-url').textContent())!.trim();
+
+  const guestContext = await browser.newContext({ locale: 'en-US' });
+  const guest = await guestContext.newPage();
+  const stream = guest.waitForResponse(
+    (response) => response.url().endsWith('/events') && response.status() === 200,
+  );
+  await guest.goto(url);
+  await stream;
+  await guest.getByRole('button', { name: 'Ben' }).click();
+  await expect(guest.getByTestId('my-total')).toHaveText('€6.00');
+
+  await page.getByRole('link', { name: 'Back' }).click();
+  await page.getByRole('button', { name: '15%' }).click();
+  // The fallback poll runs every 5 s (30 s while live), so this only passes live.
+  await expect(guest.getByTestId('my-total')).toHaveText('€6.90', { timeout: 2_500 });
+  await guestContext.close();
+});
+
 test('explains when a shared bill does not exist', async ({ page }) => {
   await page.goto('/b/Unknown123');
   await expect(

@@ -1,3 +1,4 @@
+import { createBillEvents } from '../src/bills/events';
 import { createMemoryBillStore } from '../src/bills/store';
 import type { Dependencies } from '../src/dependencies';
 import { createLogger } from '../src/observability/logger';
@@ -9,6 +10,7 @@ export function testDependencies(overrides: Partial<Dependencies> = {}): Depende
   return {
     receiptParser: createFakeReceiptParser(0),
     billStore: createMemoryBillStore({ ttlMs: 60_000 }),
+    billEvents: createBillEvents(),
     reportStore: createMemoryReportStore({ ttlMs: 60_000 }),
     reportNotifier: noopNotifier,
     logger: createLogger({ NODE_ENV: 'test' }),

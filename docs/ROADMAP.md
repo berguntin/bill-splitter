@@ -60,9 +60,11 @@
 
 ## Phase 5: Live collaboration
 
-- Socket.IO rooms per bill, small versioned operations, server as the source
-  of truth, optimistic updates on the client
-- "Who are you?" picker, presence indicators
+- [x] Live updates over server-sent events: every open page refetches as soon
+      as the bill changes, with polling as a fallback
+- [x] "Who are you?" picker on the shared view
+- Presence indicators ("Ana is looking at the bill") and collaborative item
+  edits; WebSockets only if these need two-way traffic
 
 ## Phase 6: Observability
 

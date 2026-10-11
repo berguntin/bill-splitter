@@ -86,6 +86,18 @@ to get a bodiless `304` while nothing changed (the web app polls every 5 s).
 
 - `200` `{ id, bill, version, updatedAt, expiresAt }` · `304` · `404`
 
+### `GET /api/bills/:id/events`
+
+Server-sent events (`text/event-stream`) for open pages: a `version` event with
+`{ "version": n }` on connect and after every change (owner update or groups),
+plus a comment line every 25 s to keep proxies from closing the connection.
+Clients refetch the bill with its ETag on each event and keep polling as a
+fallback (every 30 s while connected, 5 s otherwise). `404` for unknown bills,
+`503` `too_many_streams` past 50 streams per bill or 2000 in total.
+
+Events are delivered within one API instance; running several would need a
+shared channel such as MongoDB change streams.
+
 ## Bug reports
 
 ### `POST /api/reports`

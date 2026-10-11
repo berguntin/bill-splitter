@@ -20,6 +20,11 @@ export function apiBaseUrl(raw: string | undefined): string {
 
 const API_URL = apiBaseUrl(import.meta.env.VITE_API_URL);
 
+/** Absolute (or same-origin) URL of an API path. */
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
 /** Reading a receipt can take a model retry; past this the request is given up. */
 export const SCAN_TIMEOUT_MS = 60_000;
 export const REQUEST_TIMEOUT_MS = 15_000;

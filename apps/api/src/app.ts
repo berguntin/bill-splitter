@@ -30,7 +30,7 @@ export function createApp(config: Config, dependencies: Dependencies): express.E
       requestsPer10Minutes: config.RECEIPT_RATE_LIMIT,
     }),
   );
-  app.use('/api/bills', createBillsRouter(dependencies.billStore));
+  app.use('/api/bills', createBillsRouter(dependencies.billStore, dependencies.billEvents));
   app.use(
     '/api/reports',
     createReportsRouter(dependencies.reportStore, dependencies.reportNotifier),
