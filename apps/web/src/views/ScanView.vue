@@ -38,6 +38,10 @@ const ERROR_MESSAGES: Record<ScanError, { title: string; hint: string }> = {
     title: "We couldn't reach the server",
     hint: 'Check your connection and try again.',
   },
+  timeout: {
+    title: 'Reading the receipt took too long',
+    hint: 'Try again, or enter the items yourself.',
+  },
   server: { title: 'Something went wrong on our side', hint: 'Please try again in a moment.' },
 };
 

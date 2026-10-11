@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { scanReceipt } from '../api';
+import { apiBaseUrl, fetchSharedBill, scanReceipt } from '../api';
 
 function respond(status: number, body: unknown) {
   vi.stubGlobal(
@@ -46,5 +46,41 @@ describe('scanReceipt', () => {
       }),
     );
     expect(await scanReceipt(image)).toEqual({ ok: false, error: 'offline' });
+  });
+
+  it('reports a timeout when the request takes too long', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('The operation timed out.', 'TimeoutError');
+      }),
+    );
+    expect(await scanReceipt(image)).toEqual({ ok: false, error: 'timeout' });
+  });
+
+  it('treats a 200 that is not JSON as a server error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response('<!doctype html><title>Bill Splitter</title>', { status: 200 }),
+      ),
+    );
+    expect(await scanReceipt(image)).toEqual({ ok: false, error: 'server' });
+    expect(await fetchSharedBill('Abc1234567')).toEqual({ ok: false, error: 'server' });
+  });
+});
+
+describe('apiBaseUrl', () => {
+  it.each([
+    [undefined, ''],
+    ['', ''],
+    ['  ', ''],
+    ['https://api.example.com', 'https://api.example.com'],
+    ['https://api.example.com/', 'https://api.example.com'],
+    ['api.example.com', 'https://api.example.com'],
+    [' api.example.com/ ', 'https://api.example.com'],
+    ['http://localhost:3000', 'http://localhost:3000'],
+  ])('normalizes %j to %j', (raw, expected) => {
+    expect(apiBaseUrl(raw)).toBe(expected);
   });
 });

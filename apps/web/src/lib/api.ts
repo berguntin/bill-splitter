@@ -1,6 +1,39 @@
 import type { Bill, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+/**
+ * Normalizes the configured API origin: `api.example.com/` and
+ * `https://api.example.com` both become `https://api.example.com`. Without a
+ * scheme the browser would treat the value as a path on the web app itself.
+ */
+export function apiBaseUrl(raw: string | undefined): string {
+  const value = (raw ?? '').trim().replace(/\/+$/, '');
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+const API_URL = apiBaseUrl(import.meta.env.VITE_API_URL);
+
+/** Reading a receipt can take a model retry; past this the request is given up. */
+export const SCAN_TIMEOUT_MS = 60_000;
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+function timeoutSignal(ms: number, signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(ms);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+function isTimeout(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'TimeoutError';
+}
+
+/** Parses a JSON body, or returns null when the server answered something else (e.g. HTML). */
+async function readJson<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
 
 export type ScanError =
   | 'not_a_receipt'
@@ -9,6 +42,7 @@ export type ScanError =
   | 'too_large'
   | 'rate_limited'
   | 'offline'
+  | 'timeout'
   | 'server';
 
 export type ScanResult =
@@ -28,15 +62,18 @@ export async function scanReceipt(image: Blob, signal?: AbortSignal): Promise<Sc
       method: 'POST',
       headers: { 'Content-Type': image.type || 'image/jpeg' },
       body: image,
-      signal: signal ?? null,
+      signal: timeoutSignal(SCAN_TIMEOUT_MS, signal),
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    if (isTimeout(error)) return { ok: false, error: 'timeout' };
+    if (signal?.aborted) throw error;
     return { ok: false, error: 'offline' };
   }
 
   if (response.ok) {
-    const body = (await response.json()) as { receipt: ScannedReceipt; issues: ReceiptIssue[] };
+    const body = await readJson<{ receipt: ScannedReceipt; issues: ReceiptIssue[] }>(response);
+    // A 200 without JSON means the request reached the wrong server (e.g. a bad VITE_API_URL).
+    if (!body?.receipt) return { ok: false, error: 'server' };
     return { ok: true, receipt: body.receipt, issues: body.issues };
   }
   if (response.status === 422) {
@@ -55,7 +92,7 @@ export interface SharedBill {
 }
 
 export type ShareError =
-  'not_found' | 'forbidden' | 'invalid' | 'rate_limited' | 'offline' | 'server';
+  'not_found' | 'forbidden' | 'invalid' | 'rate_limited' | 'offline' | 'timeout' | 'server';
 
 export type ApiResult<T> = { ok: true; value: T } | { ok: false; error: ShareError };
 
@@ -70,12 +107,16 @@ function shareError(status: number): ShareError {
 async function sendJson<T>(path: string, init: RequestInit): Promise<ApiResult<T>> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, init);
-  } catch {
-    return { ok: false, error: 'offline' };
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      signal: timeoutSignal(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    return { ok: false, error: isTimeout(error) ? 'timeout' : 'offline' };
   }
   if (!response.ok) return { ok: false, error: shareError(response.status) };
-  return { ok: true, value: (await response.json()) as T };
+  const value = await readJson<T>(response);
+  return value === null ? { ok: false, error: 'server' } : { ok: true, value };
 }
 
 /** Publishes a bill so others can follow it; keep the returned token to update it. */
@@ -116,16 +157,14 @@ export async function fetchSharedBill(
     response = await fetch(`${API_URL}/api/bills/${encodeURIComponent(id)}`, {
       headers: etag ? { 'If-None-Match': etag } : {},
       cache: 'no-cache',
+      signal: timeoutSignal(REQUEST_TIMEOUT_MS),
     });
-  } catch {
-    return { ok: false, error: 'offline' };
+  } catch (error) {
+    return { ok: false, error: isTimeout(error) ? 'timeout' : 'offline' };
   }
   if (response.status === 304) return { ok: true, changed: false };
   if (!response.ok) return { ok: false, error: shareError(response.status) };
-  return {
-    ok: true,
-    changed: true,
-    value: (await response.json()) as SharedBill,
-    etag: response.headers.get('ETag'),
-  };
+  const value = await readJson<SharedBill>(response);
+  if (!value?.bill) return { ok: false, error: 'server' };
+  return { ok: true, changed: true, value, etag: response.headers.get('ETag') };
 }
