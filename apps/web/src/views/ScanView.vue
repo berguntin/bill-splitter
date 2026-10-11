@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import { scanReceipt, type ScanError } from '@/lib/api';
 import { compressImage } from '@/lib/compressImage';
+import { reportLocation } from '@/lib/reportContext';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
 const router = useRouter();
+const route = useRoute();
 
 const state = ref<'idle' | 'reading' | 'error'>('idle');
 const error = ref<ScanError | null>(null);
@@ -115,7 +117,14 @@ onBeforeUnmount(() => {
         <AppIcon name="close" />
       </RouterLink>
       <h1 class="text-[15px] font-semibold">Scan receipt</h1>
-      <span class="size-11" aria-hidden="true" />
+      <RouterLink
+        :to="reportLocation(route.fullPath, { topic: 'scan' })"
+        class="text-camera-muted flex size-11 items-center justify-center rounded-full"
+        aria-label="Report a problem"
+        title="Report a problem"
+      >
+        <AppIcon name="flag" :size="18" />
+      </RouterLink>
     </header>
 
     <div
@@ -185,6 +194,12 @@ onBeforeUnmount(() => {
           Enter manually
         </button>
       </div>
+      <RouterLink
+        :to="reportLocation(route.fullPath, { ref: errorRef, topic: 'scan' })"
+        class="text-camera-muted self-center text-sm font-semibold underline underline-offset-2"
+      >
+        Report this problem
+      </RouterLink>
     </section>
 
     <template v-else>

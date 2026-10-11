@@ -1,5 +1,11 @@
 import type { Bill, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
-import { newRequestId, recordRequest, REQUEST_ID_HEADER, type RequestRecord } from './diagnostics';
+import {
+  newRequestId,
+  recordRequest,
+  recordScan,
+  REQUEST_ID_HEADER,
+  type RequestRecord,
+} from './diagnostics';
 
 /**
  * Normalizes the configured API origin: `api.example.com/` and
@@ -95,7 +101,8 @@ export interface Failure<E> {
 }
 
 export type ScanResult =
-  { ok: true; receipt: ScannedReceipt; issues: ReceiptIssue[] } | Failure<ScanError>;
+  | { ok: true; receipt: ScannedReceipt; issues: ReceiptIssue[]; requestId: string }
+  | Failure<ScanError>;
 
 const ERROR_BY_STATUS: Record<number, ScanError> = {
   413: 'too_large',
@@ -105,6 +112,27 @@ const ERROR_BY_STATUS: Record<number, ScanError> = {
 
 /** Sends a receipt photo to the API and returns the lines it read. */
 export async function scanReceipt(image: Blob, signal?: AbortSignal): Promise<ScanResult> {
+  const at = new Date().toISOString();
+  const started = performance.now();
+  const result = await readReceipt(image, signal);
+  // Kept for bug reports about misread receipts.
+  recordScan(
+    {
+      at,
+      ok: result.ok,
+      requestId: result.requestId,
+      durationMs: Math.round(performance.now() - started),
+      imageBytes: image.size,
+      ...(result.ok
+        ? { lines: result.receipt.lines.length, issues: result.issues.map((issue) => issue.type) }
+        : { error: result.error }),
+    },
+    image,
+  );
+  return result;
+}
+
+async function readReceipt(image: Blob, signal?: AbortSignal): Promise<ScanResult> {
   const sent = await send(
     '/api/receipts/parse',
     { method: 'POST', headers: { 'Content-Type': image.type || 'image/jpeg' }, body: image },
@@ -127,7 +155,7 @@ export async function scanReceipt(image: Blob, signal?: AbortSignal): Promise<Sc
     const body = await readJson<{ receipt: ScannedReceipt; issues: ReceiptIssue[] }>(response);
     // A 200 without JSON means the request reached the wrong server (e.g. a bad VITE_API_URL).
     if (!body?.receipt) return fail('server');
-    return { ok: true, receipt: body.receipt, issues: body.issues };
+    return { ok: true, receipt: body.receipt, issues: body.issues, requestId: sent.requestId };
   }
   if (response.status === 422) {
     const body = (await readJson<{ error?: string }>(response)) ?? {};
@@ -219,4 +247,61 @@ export async function fetchSharedBill(
   const value = await readJson<SharedBill>(response);
   if (!value?.bill) return { ok: false, error: 'server', requestId };
   return { ok: true, changed: true, value, etag: response.headers.get('ETag') };
+}
+
+export type ReportTopic = 'scan' | 'split' | 'share' | 'other';
+
+export interface ReportAttachment {
+  kind: 'receipt' | 'screenshot';
+  mediaType: string;
+  /** Base64 without the `data:` prefix. */
+  data: string;
+}
+
+export interface ProblemReport {
+  description: string;
+  email?: string;
+  topic: ReportTopic;
+  context: unknown;
+  bill?: Bill;
+  attachments: ReportAttachment[];
+}
+
+export type ReportError =
+  'invalid' | 'too_large' | 'rate_limited' | 'offline' | 'timeout' | 'server';
+
+/** Photos make reports slow on mobile data; allow more time than other calls. */
+export const REPORT_TIMEOUT_MS = 45_000;
+
+/** Sends a bug report; returns its reference. */
+export async function sendReport(
+  report: ProblemReport,
+): Promise<{ ok: true; id: string } | Failure<ReportError>> {
+  const sent = await send(
+    '/api/reports',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(report),
+    },
+    REPORT_TIMEOUT_MS,
+  );
+  const { requestId } = sent;
+  if (!sent.ok) {
+    return { ok: false, error: isTimeout(sent.caught) ? 'timeout' : 'offline', requestId };
+  }
+  const { response } = sent;
+  if (response.ok) {
+    const body = await readJson<{ id?: string }>(response);
+    return body?.id ? { ok: true, id: body.id } : { ok: false, error: 'server', requestId };
+  }
+  const error: ReportError =
+    response.status === 400
+      ? 'invalid'
+      : response.status === 413
+        ? 'too_large'
+        : response.status === 429
+          ? 'rate_limited'
+          : 'server';
+  return { ok: false, error, requestId };
 }

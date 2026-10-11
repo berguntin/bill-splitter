@@ -9,6 +9,7 @@ export type {
   UnassignedBreakdown,
 } from './split';
 export { assignedDinerIds, toggleDiner, toggleEveryone } from './assignments';
+export { anonymizeBill } from './anonymize';
 export { splitIntoUnits } from './items';
 export { receiptIssues, receiptIssueScore } from './receipt';
 export type { ReceiptIssue, ScannedLine, ScannedReceipt } from './receipt';

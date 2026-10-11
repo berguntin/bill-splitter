@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
+import { reportLocation } from '@/lib/reportContext';
 import AppIcon from './AppIcon.vue';
 
-defineProps<{ title: string; step?: string; back: RouteLocationRaw }>();
+defineProps<{
+  title: string;
+  step?: string;
+  back: RouteLocationRaw;
+  /** Hides the "Report a problem" button, e.g. on the report screen itself. */
+  hideReport?: boolean;
+}>();
+
+const route = useRoute();
 </script>
 
 <template>
@@ -16,5 +25,14 @@ defineProps<{ title: string; step?: string; back: RouteLocationRaw }>();
       <h1 class="truncate text-[22px] font-extrabold tracking-tight">{{ title }}</h1>
     </div>
     <slot name="actions" />
+    <RouterLink
+      v-if="!hideReport"
+      :to="reportLocation(route.fullPath)"
+      class="text-ink-muted -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full transition active:scale-95"
+      aria-label="Report a problem"
+      title="Report a problem"
+    >
+      <AppIcon name="flag" :size="18" />
+    </RouterLink>
   </header>
 </template>

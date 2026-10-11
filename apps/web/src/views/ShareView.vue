@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import QrCode from '@/components/QrCode.vue';
 import StepHeader from '@/components/StepHeader.vue';
+import { reportLocation } from '@/lib/reportContext';
 import { summaryText } from '@/lib/summaryText';
 import { useBillStore } from '@/stores/bill';
 import { useShareStore } from '@/stores/share';
@@ -11,6 +13,7 @@ import { useShareStore } from '@/stores/share';
 const billStore = useBillStore();
 const shareStore = useShareStore();
 const copied = ref(false);
+const route = useRoute();
 
 onMounted(() => {
   void shareStore.share();
@@ -111,11 +114,18 @@ async function sendInChat(): Promise<void> {
     >
       {{ errorMessage }}
       <button type="button" class="ml-1 underline" @click="shareStore.share()">Retry</button>
-      <ErrorReference
+      <div
         v-if="shareStore.errorRef && shareStore.error !== 'offline'"
-        :request-id="shareStore.errorRef"
-        class="mt-1 font-normal"
-      />
+        class="mt-1 flex items-center justify-between gap-3 font-normal"
+      >
+        <ErrorReference :request-id="shareStore.errorRef" />
+        <RouterLink
+          :to="reportLocation(route.fullPath, { ref: shareStore.errorRef, topic: 'share' })"
+          class="text-xs font-semibold underline underline-offset-2"
+        >
+          Report this problem
+        </RouterLink>
+      </div>
     </div>
 
     <div class="card flex items-center gap-2.5 py-2 pr-2 pl-4">

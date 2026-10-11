@@ -13,7 +13,7 @@ const server = createApp(config, dependencies).listen(config.PORT, () => {
   logger.info(
     `API listening on http://localhost:${config.PORT} ` +
       `(receipts: ${config.RECEIPT_PARSER}, bills: ${config.MONGODB_URI ? 'mongodb' : 'memory'}, ` +
-      `sentry: ${sentry ? 'on' : 'off'}, release: ${config.RELEASE ?? 'unknown'})`,
+      `reports: ${config.GITHUB_TOKEN ? 'github' : 'stored only'}, sentry: ${sentry ? 'on' : 'off'}, release: ${config.RELEASE ?? 'unknown'})`,
   );
 });
 
@@ -32,7 +32,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     server.close(
       () =>
-        void Promise.allSettled([dependencies.billStore.close(), flushSentry()]).finally(() =>
+        void Promise.allSettled([dependencies.close(), flushSentry()]).finally(() =>
           process.exit(0),
         ),
     );

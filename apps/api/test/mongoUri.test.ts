@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeMongoUri } from '../src/bills/mongo';
+import { describeMongoUri } from '../src/db/mongo';
 
 describe('describeMongoUri', () => {
   it('summarizes a connection string without revealing the password', () => {

@@ -31,6 +31,16 @@ const schema = z
     MONGODB_DATABASE: z.string().trim().min(1).default('bill-splitter'),
     /** Days a shared bill is kept after its last update. */
     BILL_TTL_DAYS: z.coerce.number().positive().default(7),
+    /** Days a bug report and its photos are kept. */
+    REPORT_TTL_DAYS: z.coerce.number().positive().default(90),
+    /** Fine-grained token with "Issues: read and write", to open an issue per bug report. */
+    GITHUB_TOKEN: optionalString,
+    /** Repository for those issues, as `owner/name`. */
+    GITHUB_REPOSITORY: z
+      .string()
+      .trim()
+      .regex(/^[\w.-]+\/[\w.-]+$/)
+      .default('berguntin/bill-splitter'),
     /** Sentry project DSN. Without it, errors are only logged. */
     SENTRY_DSN: optionalString,
     /** Environment name shown in Sentry; defaults to NODE_ENV. */

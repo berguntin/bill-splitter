@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import { money } from '@/lib/format';
+import { reportLocation } from '@/lib/reportContext';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
@@ -96,6 +97,12 @@ function scan(): void {
       <button type="button" class="btn-secondary" @click="startNewBill">
         Enter items manually
       </button>
+      <RouterLink
+        :to="reportLocation('/')"
+        class="text-ink-muted mt-2 self-center text-[13px] font-semibold"
+      >
+        Report a problem
+      </RouterLink>
     </section>
   </main>
 </template>

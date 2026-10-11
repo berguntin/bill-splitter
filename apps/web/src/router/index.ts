@@ -33,6 +33,7 @@ export const router = createRouter({
       component: () => import('@/views/GuestView.vue'),
       props: true,
     },
+    { path: '/report', name: 'report', component: () => import('@/views/ReportView.vue') },
     { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
   ],
   scrollBehavior: () => ({ top: 0 }),

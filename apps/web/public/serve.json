@@ -2,7 +2,8 @@
   "rewrites": [
     { "source": "/scan", "destination": "/index.html" },
     { "source": "/bill/**", "destination": "/index.html" },
-    { "source": "/b/**", "destination": "/index.html" }
+    { "source": "/b/**", "destination": "/index.html" },
+    { "source": "/report", "destination": "/index.html" }
   ],
   "headers": [
     {

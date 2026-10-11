@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computeBreakdown, type Diner } from '@bill-splitter/core';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import { useSharedBill } from '@/composables/useSharedBill';
 import { fractionLabel, money } from '@/lib/format';
 import { timeAgo } from '@/lib/relativeTime';
+import { reportLocation } from '@/lib/reportContext';
 import { loadJson, saveJson } from '@/lib/storage';
 
 const props = defineProps<{ id: string }>();
+const route = useRoute();
 
 const { bill, updatedAt, state, error, errorRef } = useSharedBill(props.id);
 
@@ -74,6 +77,12 @@ function pick(diner: Diner): void {
         :request-id="errorRef"
         class="text-ink-muted"
       />
+      <RouterLink
+        :to="reportLocation(route.fullPath, { ref: errorRef, topic: 'share' })"
+        class="text-ink-muted text-sm font-semibold underline underline-offset-2"
+      >
+        Report this problem
+      </RouterLink>
     </section>
 
     <template v-else-if="bill && breakdown">
@@ -188,6 +197,10 @@ function pick(diner: Diner): void {
         Split with
         <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold"
           >Bill Splitter</RouterLink
+        >
+        ·
+        <RouterLink :to="reportLocation(route.fullPath, { topic: 'share' })" class="font-semibold"
+          >Report a problem</RouterLink
         >
       </p>
     </template>
