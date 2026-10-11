@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { useBillStore } from '../bill';
-import { SYNC_DELAY_MS, useShareStore } from '../share';
+import { REMOTE_POLL_MS, SYNC_DELAY_MS, useShareStore } from '../share';
 
 type Handler = (url: string, init: RequestInit) => { status: number; body?: unknown };
 
@@ -127,5 +127,60 @@ describe('useShareStore', () => {
 
     expect(share.isShared).toBe(false);
     expect(share.url).toBeNull();
+  });
+
+  describe('paying together', () => {
+    function setUpTable() {
+      const bill = useBillStore();
+      const ana = bill.addDiner('Ana')!;
+      const ben = bill.addDiner('Ben')!;
+      bill.addItem({ name: 'Pizza', total: 1200 });
+      return { bill, ana, ben };
+    }
+
+    it('sends groups made by the owner through the shared groups endpoint', async () => {
+      vi.useFakeTimers();
+      const sent: unknown[] = [];
+      mockApi((url, init) => {
+        if (url.endsWith('/groups')) {
+          const { groups } = JSON.parse(String(init.body));
+          sent.push(groups);
+          return { status: 200, body: { ...created, bill: { groups } } };
+        }
+        return { status: init.method === 'POST' ? 201 : 200, body: created };
+      });
+      const { bill, ana, ben } = setUpTable();
+      const share = useShareStore();
+      await share.share();
+
+      bill.groupDiners([ana.id, ben.id]);
+      await nextTick();
+      await vi.advanceTimersByTimeAsync(SYNC_DELAY_MS);
+
+      expect(sent).toEqual([[expect.objectContaining({ dinerIds: [ana.id, ben.id] })]]);
+      expect(share.status).toBe('saved');
+    });
+
+    it('applies groups that guests set, without an undo step', async () => {
+      vi.useFakeTimers();
+      let remoteGroups: unknown[] = [];
+      const fetchMock = mockApi((_url, init) => {
+        if (init.method === 'POST') return { status: 201, body: created };
+        return { status: 200, body: { ...created, bill: { groups: remoteGroups } } };
+      });
+      const { bill, ana, ben } = setUpTable();
+      const share = useShareStore();
+      await share.share();
+      const undoSteps = bill.canUndo;
+
+      remoteGroups = [{ id: 'guest-group', dinerIds: [ana.id, ben.id] }];
+      await vi.advanceTimersByTimeAsync(REMOTE_POLL_MS);
+
+      expect(bill.bill.groups).toEqual(remoteGroups);
+      expect(bill.canUndo).toBe(undoSteps);
+      // Applying the guests' groups does not bounce them back to the server.
+      await vi.advanceTimersByTimeAsync(SYNC_DELAY_MS);
+      expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/groups'))).toEqual([]);
+    });
   });
 });

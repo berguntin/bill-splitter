@@ -1,6 +1,14 @@
+import type { Bill, DinerGroup } from '@bill-splitter/core';
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
-import { createSharedBill, updateSharedBill, type Failure, type ShareError } from '@/lib/api';
+import {
+  createSharedBill,
+  fetchSharedBill,
+  setSharedGroups,
+  updateSharedBill,
+  type Failure,
+  type ShareError,
+} from '@/lib/api';
 import { loadJson, saveJson } from '@/lib/storage';
 import { useBillStore } from './bill';
 
@@ -9,11 +17,16 @@ export const SHARE_STORAGE_KEY = 'bill-splitter/share/v1';
 /** Wait this long after the last edit before pushing, so a burst of taps is one request. */
 export const SYNC_DELAY_MS = 800;
 
+/** How often the owner checks whether guests changed who pays together. */
+export const REMOTE_POLL_MS = 5000;
+
 interface ShareLink {
   /** Local bill this link belongs to; a new bill means a new link. */
   localBillId: string;
   remoteId: string;
   ownerToken: string;
+  /** Groups as last agreed with the server, to tell local changes from remote ones. */
+  syncedGroups?: DinerGroup[];
 }
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -28,9 +41,27 @@ function isShareLink(value: unknown): value is ShareLink {
   );
 }
 
+/** Order-insensitive fingerprint of a set of groups. */
+function groupsKey(groups: DinerGroup[] | undefined): string {
+  return JSON.stringify(
+    (groups ?? [])
+      .map((group) => [...group.dinerIds].sort())
+      .sort((a, b) => a.join().localeCompare(b.join())),
+  );
+}
+
+/** Everything the owner alone controls: the bill without its groups. */
+function ownerKey({ groups: _groups, ...rest }: Bill): string {
+  return JSON.stringify(rest);
+}
+
 /**
  * Publishes the current bill so guests can follow it from a link or QR code,
  * then keeps the published copy in sync with every local edit.
+ *
+ * Groups (who pays together) can also be changed by guests. They are synced
+ * separately: a local change is sent, a remote one is applied, and when both
+ * happen at once the local one wins.
  */
 export const useShareStore = defineStore('share', () => {
   const billStore = useBillStore();
@@ -56,9 +87,17 @@ export const useShareStore = defineStore('share', () => {
   let inFlight: Promise<void> | null = null;
   let pendingAgain = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /** What the server has of the owner's part of the bill, to skip pushes that change nothing. */
+  let pushedOwnerKey: string | null = null;
 
   /** Publishes the bill, or pushes the latest version if it is already published. */
-  async function share(): Promise<boolean> {
+  function share(): Promise<boolean> {
+    // Asked for explicitly (e.g. "Retry"): push even if nothing seems to have changed.
+    pushedOwnerKey = null;
+    return sync();
+  }
+
+  async function sync(): Promise<boolean> {
     clearTimeout(timer);
     if (inFlight) {
       // Another push is running; make sure the latest edits follow it.
@@ -72,7 +111,7 @@ export const useShareStore = defineStore('share', () => {
     await inFlight;
     if (pendingAgain) {
       pendingAgain = false;
-      return share();
+      return sync();
     }
     return status.value === 'saved';
   }
@@ -83,20 +122,65 @@ export const useShareStore = defineStore('share', () => {
     const current = activeLink.value;
 
     if (current) {
-      const result = await updateSharedBill(current.remoteId, current.ownerToken, bill);
-      if (result.ok) return saved();
-      // Expired or no longer ours: publish again under a new link.
-      if (result.error !== 'not_found' && result.error !== 'forbidden') return failed(result);
+      let remote: Bill | null = null;
+      if (ownerKey(bill) !== pushedOwnerKey) {
+        const key = ownerKey(bill);
+        const result = await updateSharedBill(current.remoteId, current.ownerToken, bill);
+        if (result.ok) {
+          pushedOwnerKey = key;
+          remote = result.value.bill;
+        } else if (result.error !== 'not_found' && result.error !== 'forbidden') {
+          return failed(result);
+        } else {
+          // Expired or no longer ours: publish again under a new link.
+          return publish(bill);
+        }
+      }
+      const reconciled = await reconcileGroups(remote);
+      return reconciled === true ? saved() : failed(reconciled);
     }
 
+    return publish(bill);
+  }
+
+  async function publish(bill: Bill): Promise<void> {
+    const key = ownerKey(bill);
     const created = await createSharedBill(bill);
     if (!created.ok) return failed(created);
+    pushedOwnerKey = key;
     link.value = {
       localBillId: bill.id,
       remoteId: created.value.id,
       ownerToken: created.value.ownerToken,
+      syncedGroups: created.value.bill.groups ?? [],
     };
     saved();
+  }
+
+  /**
+   * Brings local and shared groups together. `remote` is the latest shared
+   * bill, if one was just received.
+   */
+  async function reconcileGroups(remote: Bill | null): Promise<true | Failure<ShareError>> {
+    const current = activeLink.value;
+    if (!current) return true;
+    const local = billStore.bill.groups ?? [];
+    const synced = current.syncedGroups ?? [];
+
+    if (groupsKey(local) !== groupsKey(synced)) {
+      const result = await setSharedGroups(current.remoteId, local);
+      if (!result.ok) return result;
+      current.syncedGroups = result.value.bill.groups ?? [];
+      if (groupsKey(current.syncedGroups) !== groupsKey(billStore.bill.groups)) {
+        billStore.applySharedGroups(current.syncedGroups);
+      }
+      return true;
+    }
+    if (remote && groupsKey(remote.groups) !== groupsKey(synced)) {
+      current.syncedGroups = remote.groups ?? [];
+      billStore.applySharedGroups(current.syncedGroups);
+    }
+    return true;
   }
 
   function saved(): void {
@@ -114,16 +198,49 @@ export const useShareStore = defineStore('share', () => {
   // Keep guests up to date while the bill is shared.
   watch(
     () => billStore.bill,
-    () => {
+    (bill) => {
       if (!isShared.value) return;
+      const groupsChanged = groupsKey(bill.groups) !== groupsKey(activeLink.value?.syncedGroups);
+      if (!groupsChanged && ownerKey(bill) === pushedOwnerKey) return;
       clearTimeout(timer);
-      timer = setTimeout(() => void share(), SYNC_DELAY_MS);
+      timer = setTimeout(() => void sync(), SYNC_DELAY_MS);
     },
     { deep: true },
   );
 
+  // Pick up groups that guests set, while the bill is shared and the app is visible.
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let etag: string | null = null;
+
+  async function pollRemote(): Promise<void> {
+    const current = activeLink.value;
+    if (current && !inFlight && !document.hidden) {
+      const result = await fetchSharedBill(current.remoteId, etag);
+      if (result.ok && result.changed && activeLink.value === current) {
+        etag = result.etag;
+        await reconcileGroups(result.value.bill);
+      }
+    }
+    schedulePoll();
+  }
+
+  function schedulePoll(): void {
+    clearTimeout(pollTimer);
+    if (isShared.value) pollTimer = setTimeout(() => void pollRemote(), REMOTE_POLL_MS);
+  }
+
+  watch(
+    () => activeLink.value?.remoteId,
+    () => {
+      etag = null;
+      schedulePoll();
+    },
+    { immediate: true },
+  );
+
   function stopSharing(): void {
     clearTimeout(timer);
+    clearTimeout(pollTimer);
     link.value = null;
     status.value = 'idle';
     error.value = null;

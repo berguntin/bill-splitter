@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computeBreakdown, payers, type Diner } from '@bill-splitter/core';
+import {
+  computeBreakdown,
+  groupDiners,
+  payers,
+  ungroup,
+  type Diner,
+  type DinerGroup,
+} from '@bill-splitter/core';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import DinerAvatar from '@/components/DinerAvatar.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
+import SelectMark from '@/components/SelectMark.vue';
+import { usePayTogether } from '@/composables/usePayTogether';
 import { useSharedBill } from '@/composables/useSharedBill';
 import { fractionLabel, joinNames, money } from '@/lib/format';
 import { timeAgo } from '@/lib/relativeTime';
@@ -13,7 +23,7 @@ import { loadJson, saveJson } from '@/lib/storage';
 const props = defineProps<{ id: string }>();
 const route = useRoute();
 
-const { bill, updatedAt, state, error, errorRef } = useSharedBill(props.id);
+const { bill, updatedAt, state, error, errorRef, setGroups } = useSharedBill(props.id);
 
 const meKey = `bill-splitter/guest/${props.id}/me`;
 const meId = ref<string | null>(
@@ -47,7 +57,8 @@ const payerRows = computed(() => {
     const ids = payer.kind === 'group' ? payer.dinerIds : [payer.dinerId];
     const members = ids.flatMap((id) => diners.get(id) ?? []);
     return {
-      key: payer.kind === 'group' ? payer.groupId : payer.dinerId,
+      key: payer.kind === 'group' ? `group:${payer.groupId}` : payer.dinerId,
+      dinerIds: members.map((diner) => diner.id),
       payer,
       members,
       name: joinNames(members.map((diner) => diner.name)),
@@ -77,6 +88,58 @@ const others = computed(() =>
   ),
 );
 const currency = computed(() => bill.value?.currency ?? 'EUR');
+
+const together = usePayTogether(payerRows);
+const { selecting, selectedDinerIds, canGroup } = together;
+
+/** Groups as they were before each change made here, newest last. */
+const history = ref<DinerGroup[][]>([]);
+const toast = ref<{ message: string; undo: boolean } | null>(null);
+const saving = ref(false);
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+function notify(message: string, undo: boolean): void {
+  toast.value = { message, undo };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value = null), undo ? 5000 : 3000);
+}
+
+async function changeGroups(next: DinerGroup[], message: string, record = true): Promise<void> {
+  if (!bill.value || saving.value) return;
+  const previous = bill.value.groups ?? [];
+  saving.value = true;
+  const result = await setGroups(next);
+  saving.value = false;
+  if (result !== true) {
+    notify("Couldn't save that. Check your connection and try again.", false);
+    return;
+  }
+  if (record) history.value.push(previous);
+  notify(message, record);
+}
+
+function payTogether(): void {
+  if (!bill.value || !canGroup.value) return;
+  const names = joinNames(
+    selectedDinerIds.value.flatMap(
+      (id) => bill.value?.diners.find((diner) => diner.id === id)?.name ?? [],
+    ),
+  );
+  const next = groupDiners(bill.value.groups ?? [], selectedDinerIds.value, crypto.randomUUID());
+  together.stop();
+  void changeGroups(next, `${names} pay together`);
+}
+
+function paySeparately(groupId: string, name: string): void {
+  if (!bill.value) return;
+  void changeGroups(ungroup(bill.value.groups ?? [], groupId), `${name} pay separately`);
+}
+
+function undo(): void {
+  const previous = history.value.pop();
+  if (previous) void changeGroups(previous, 'Undone', false);
+  toast.value = null;
+}
 
 function pick(diner: Diner): void {
   meId.value = diner.id;
@@ -220,8 +283,19 @@ function pick(diner: Diner): void {
             </span>
             <span class="text-ink-muted text-xs">{{ myGroup.shares }}</span>
           </span>
-          <span class="text-base font-extrabold tabular-nums">
-            {{ money(myGroup.payer.total, currency) }}
+          <span class="flex flex-col items-end gap-0.5">
+            <span class="text-base font-extrabold tabular-nums">
+              {{ money(myGroup.payer.total, currency) }}
+            </span>
+            <button
+              v-if="myGroup.payer.kind === 'group'"
+              type="button"
+              class="text-ink-muted text-xs font-semibold underline underline-offset-2"
+              :disabled="saving"
+              @click="paySeparately(myGroup.payer.groupId, myGroup.name)"
+            >
+              Pay separately
+            </button>
           </span>
         </div>
       </section>
@@ -233,8 +307,64 @@ function pick(diner: Diner): void {
         {{ money(breakdown.unassigned.total, currency) }} is still being assigned.
       </p>
 
-      <section v-if="others.length" class="flex flex-col gap-2.5" aria-labelledby="everyone">
-        <h2 id="everyone" class="section-label mt-2">{{ me ? 'Everyone else' : 'Everyone' }}</h2>
+      <section v-if="selecting" class="flex flex-col gap-2.5" aria-labelledby="pick">
+        <h2 id="pick" class="section-label mt-2">Who pays together?</h2>
+        <ul class="card flex flex-col" aria-label="Pick who pays together">
+          <li
+            v-for="row in payerRows"
+            :key="row.key"
+            class="border-line-soft border-b last:border-b-0"
+          >
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 px-4 py-3 text-left"
+              :aria-pressed="together.isSelected(row.key)"
+              @click="together.toggle(row.key)"
+            >
+              <SelectMark :checked="together.isSelected(row.key)" />
+              <span class="flex shrink-0">
+                <DinerAvatar
+                  v-for="(diner, index) in row.members"
+                  :key="diner.id"
+                  :diner="diner"
+                  :size="32"
+                  :class="{ 'border-surface-raised -ml-2.5 border-2': index > 0 }"
+                />
+              </span>
+              <span class="min-w-0 flex-1 truncate text-[15px] font-semibold">{{ row.name }}</span>
+              <span class="text-[15px] font-bold tabular-nums">{{
+                money(row.payer.total, currency)
+              }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <section v-else-if="others.length" class="flex flex-col gap-2.5" aria-labelledby="everyone">
+        <div class="mt-2 flex items-center justify-between">
+          <h2 id="everyone" class="section-label">{{ me ? 'Everyone else' : 'Everyone' }}</h2>
+          <div class="flex items-center gap-3">
+            <button
+              v-if="history.length"
+              type="button"
+              class="text-ink-muted flex h-8 items-center gap-1 text-sm font-semibold"
+              :disabled="saving"
+              @click="undo"
+            >
+              <AppIcon name="undo" :size="15" />
+              Undo
+            </button>
+            <button
+              v-if="payerRows.length > 1"
+              type="button"
+              class="text-accent-text flex h-8 items-center gap-1.5 text-sm font-bold"
+              @click="together.start()"
+            >
+              <AppIcon name="link" :size="15" />
+              Pay together
+            </button>
+          </div>
+        </div>
         <ul class="card flex flex-col">
           <li
             v-for="row in others"
@@ -254,14 +384,64 @@ function pick(diner: Diner): void {
               <span class="truncate text-[15px] font-semibold">{{ row.name }}</span>
               <span v-if="row.shares" class="text-ink-muted text-xs">{{ row.shares }}</span>
             </span>
-            <span class="text-[15px] font-bold tabular-nums">{{
-              money(row.payer.total, currency)
-            }}</span>
+            <span class="flex flex-col items-end gap-0.5">
+              <span class="text-[15px] font-bold tabular-nums">{{
+                money(row.payer.total, currency)
+              }}</span>
+              <button
+                v-if="row.payer.kind === 'group'"
+                type="button"
+                class="text-ink-muted text-xs font-semibold underline underline-offset-2"
+                :disabled="saving"
+                @click="paySeparately(row.payer.groupId, row.name)"
+              >
+                Pay separately
+              </button>
+            </span>
           </li>
         </ul>
       </section>
 
-      <p class="text-ink-muted mt-auto pt-6 text-center text-[13px]">
+      <div v-if="selecting" class="bg-surface sticky bottom-0 mt-auto flex gap-2.5 pt-3 pb-2">
+        <button type="button" class="btn-secondary h-15 flex-1" @click="together.stop()">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn-primary flex-[2]"
+          :disabled="!canGroup || saving"
+          @click="payTogether"
+        >
+          <AppIcon name="link" />
+          {{ canGroup ? `Pay together (${selectedDinerIds.length})` : 'Pick 2 or more' }}
+        </button>
+      </div>
+
+      <Transition
+        enter-from-class="opacity-0 translate-y-2"
+        leave-to-class="opacity-0 translate-y-2"
+        enter-active-class="transition"
+        leave-active-class="transition"
+      >
+        <div
+          v-if="toast"
+          role="status"
+          class="bg-inverse text-inverse-ink fixed inset-x-5 bottom-8 z-10 mx-auto flex max-w-sm items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
+          :class="toast.undo ? 'justify-between' : 'justify-center'"
+        >
+          <span>{{ toast.message }}</span>
+          <button
+            v-if="toast.undo"
+            type="button"
+            class="shrink-0 font-bold underline underline-offset-2"
+            @click="undo"
+          >
+            Undo
+          </button>
+        </div>
+      </Transition>
+
+      <p v-if="!selecting" class="text-ink-muted mt-auto pt-6 text-center text-[13px]">
         Split with
         <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold"
           >Bill Splitter</RouterLink

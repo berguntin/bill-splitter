@@ -1,4 +1,4 @@
-import type { Bill } from '@bill-splitter/core';
+import { pruneGroups, type Bill, type DinerGroup } from '@bill-splitter/core';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 export interface StoredBill {
@@ -20,7 +20,13 @@ export type UpdateResult = StoredBill | 'not_found' | 'forbidden';
 export interface BillStore {
   create(bill: Bill): Promise<{ record: StoredBill; ownerToken: string }>;
   get(id: string): Promise<StoredBill | null>;
+  /**
+   * Replaces the bill, except its groups: those are shared by everyone at the
+   * table through `setGroups`, so the owner's copy may be behind.
+   */
   update(id: string, ownerToken: string, bill: Bill): Promise<UpdateResult>;
+  /** Sets who pays together. Anyone with the link may, so it touches nothing else. */
+  setGroups(id: string, groups: DinerGroup[]): Promise<StoredBill | null>;
   /** Resolves when the storage is reachable; rejects otherwise. */
   ping(): Promise<void>;
 }
@@ -31,6 +37,25 @@ export const BILL_ID_PATTERN = /^[A-Za-z0-9]{10}$/;
 /** Short, unguessable id for links and QR codes (57^10 ≈ 3.6e17 combinations). */
 export function newBillId(): string {
   return Array.from({ length: 10 }, () => ID_ALPHABET[randomInt(ID_ALPHABET.length)]).join('');
+}
+
+/** The bill without its groups, which owner updates must not overwrite. */
+export function withoutGroups(bill: Bill): Omit<Bill, 'groups'> {
+  const copy: Bill = { ...bill };
+  delete copy.groups;
+  return copy;
+}
+
+/** Groups as stored may name diners the owner removed since; readers never see those. */
+export function withLiveGroups(bill: Bill): Bill {
+  if (!bill.groups) return bill;
+  return {
+    ...bill,
+    groups: pruneGroups(
+      bill.groups,
+      bill.diners.map((diner) => diner.id),
+    ),
+  };
 }
 
 export function newOwnerToken(): string {
@@ -68,7 +93,14 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
   }
 
   function publicView({ ownerTokenHash: _hash, ...record }: MemoryEntry): StoredBill {
-    return structuredClone(record);
+    return structuredClone({ ...record, bill: withLiveGroups(record.bill) });
+  }
+
+  function touch(entry: MemoryEntry): void {
+    const updatedAt = now();
+    entry.version += 1;
+    entry.updatedAt = updatedAt;
+    entry.expiresAt = new Date(updatedAt.getTime() + options.ttlMs);
   }
 
   return {
@@ -97,11 +129,17 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
       const entry = live(id);
       if (!entry) return 'not_found';
       if (!tokenMatches(ownerToken, entry.ownerTokenHash)) return 'forbidden';
-      const updatedAt = now();
-      entry.bill = structuredClone({ ...bill, id });
-      entry.version += 1;
-      entry.updatedAt = updatedAt;
-      entry.expiresAt = new Date(updatedAt.getTime() + options.ttlMs);
+      const rest = withoutGroups(structuredClone(bill));
+      entry.bill = entry.bill.groups ? { ...rest, id, groups: entry.bill.groups } : { ...rest, id };
+      touch(entry);
+      return publicView(entry);
+    },
+
+    async setGroups(id, groups) {
+      const entry = live(id);
+      if (!entry) return null;
+      entry.bill = { ...entry.bill, groups: structuredClone(groups) };
+      touch(entry);
       return publicView(entry);
     },
 

@@ -1,7 +1,7 @@
 import express, { Router, type Request } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
-import { BillInputSchema, toBill } from '../bills/schema';
+import { BillInputSchema, GroupsSchema, toBill } from '../bills/schema';
 import { BILL_ID_PATTERN, newBillId, type BillStore, type StoredBill } from '../bills/store';
 
 const BodySchema = z.object({ bill: BillInputSchema });
@@ -100,6 +100,27 @@ export function createBillsRouter(store: BillStore): Router {
       req.log.debug({ bill: summarize(result) }, 'bill updated');
       res.json(publicBody(result));
     }
+  });
+
+  // Anyone at the table may say who pays together; nothing else changes.
+  router.put('/:id/groups', limiter(300), express.json({ limit: '20kb' }), async (req, res) => {
+    const id = billIdParam(req);
+    if (!BILL_ID_PATTERN.test(id)) {
+      res.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const parsed = z.object({ groups: GroupsSchema }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid_groups', issues: z.flattenError(parsed.error) });
+      return;
+    }
+    const record = await store.setGroups(id, parsed.data.groups);
+    if (!record) {
+      res.status(404).json({ error: 'not_found' });
+      return;
+    }
+    req.log.info({ bill: summarize(record), groups: parsed.data.groups.length }, 'groups changed');
+    res.json(publicBody(record));
   });
 
   // Guests on the same restaurant wifi share an IP; each polls ~120 times per 10 minutes.

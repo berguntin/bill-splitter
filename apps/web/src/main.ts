@@ -6,6 +6,7 @@ import { installDiagnostics } from './lib/installDiagnostics';
 import { initMonitoring } from './lib/monitoring';
 import { installUpdateReload } from './lib/updateReload';
 import { router } from './router';
+import { useShareStore } from './stores/share';
 import './assets/main.css';
 
 const app = createApp(App);
@@ -14,5 +15,7 @@ app.use(createPinia());
 app.use(router);
 installDiagnostics(app, router);
 installUpdateReload(router);
+// Keeps a shared bill in sync from any screen, also right after a reload.
+useShareStore();
 app.mount('#app');
 void initMonitoring(app, router);

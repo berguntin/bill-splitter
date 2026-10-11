@@ -7,6 +7,8 @@ import DinerAvatar from '@/components/DinerAvatar.vue';
 import StepHeader from '@/components/StepHeader.vue';
 import { joinNames, money } from '@/lib/format';
 import { summaryText } from '@/lib/summaryText';
+import SelectMark from '@/components/SelectMark.vue';
+import { usePayTogether } from '@/composables/usePayTogether';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
@@ -25,10 +27,6 @@ const expanded = ref<string | null>(null);
 const toast = ref<{ message: string; undo: boolean } | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Picking people (or groups) who pay together. */
-const selecting = ref(false);
-const selected = ref<string[]>([]);
-
 const dinersById = computed(() => new Map(store.bill.diners.map((diner) => [diner.id, diner])));
 
 /** A payer with the diners it covers, keyed for selection and expansion. */
@@ -38,6 +36,7 @@ const rows = computed(() =>
     const diners = ids.flatMap((id) => dinersById.value.get(id) ?? []);
     return {
       key: payer.kind === 'group' ? `group:${payer.groupId}` : payer.dinerId,
+      dinerIds: diners.map((diner) => diner.id),
       payer,
       diners,
       name: joinNames(diners.map((diner) => diner.name)),
@@ -48,28 +47,19 @@ const rows = computed(() =>
 // Open the first card, as before groups existed.
 expanded.value = rows.value[0]?.key ?? null;
 
-const selectedDinerIds = computed(() =>
-  rows.value
-    .filter((row) => selected.value.includes(row.key))
-    .flatMap((row) => row.diners.map((diner) => diner.id)),
-);
-const canGroup = computed(() => selectedDinerIds.value.length >= 2);
+const {
+  selecting,
+  selectedDinerIds,
+  canGroup,
+  start: startPicking,
+  stop: stopGrouping,
+  toggle: toggleSelected,
+  isSelected,
+} = usePayTogether(rows);
 
 function startGrouping(): void {
-  selecting.value = true;
-  selected.value = [];
+  startPicking();
   expanded.value = null;
-}
-
-function stopGrouping(): void {
-  selecting.value = false;
-  selected.value = [];
-}
-
-function toggleSelected(key: string): void {
-  selected.value = selected.value.includes(key)
-    ? selected.value.filter((candidate) => candidate !== key)
-    : [...selected.value, key];
 }
 
 function payTogether(): void {
@@ -238,30 +228,10 @@ async function copy(): Promise<void> {
           type="button"
           class="flex items-center gap-3 px-4 py-3 text-left"
           :aria-expanded="selecting ? undefined : expanded === row.key"
-          :aria-pressed="selecting ? selected.includes(row.key) : undefined"
+          :aria-pressed="selecting ? isSelected(row.key) : undefined"
           @click="selecting ? toggleSelected(row.key) : toggle(row.key)"
         >
-          <span
-            v-if="selecting"
-            class="flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition"
-            :class="
-              selected.includes(row.key)
-                ? 'bg-accent border-accent text-accent-ink'
-                : 'border-line bg-surface-raised'
-            "
-            aria-hidden="true"
-          >
-            <svg v-if="selected.includes(row.key)" width="14" height="14" viewBox="0 0 24 24">
-              <path
-                d="M5 12.5l4.5 4.5L19 7.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
+          <SelectMark v-if="selecting" :checked="isSelected(row.key)" />
           <span class="flex shrink-0">
             <DinerAvatar
               v-for="(diner, index) in row.diners"
