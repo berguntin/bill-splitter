@@ -54,7 +54,9 @@
 
 ## Phase 4: Polish and launch
 
-- PWA, dark mode, accessibility review, i18n (English and Spanish)
+- [x] i18n: English and Spanish, picked from the browser's languages, with a
+      switch on the home screen
+- PWA, dark mode, accessibility review
 - "Mark as paid" per diner, PayPal.me links, IBAN and Bizum number to copy
 - Deploy on a subdomain of Camarero Digital
 

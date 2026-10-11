@@ -1,5 +1,6 @@
 import { payers, type Bill, type Breakdown } from '@bill-splitter/core';
 import { joinNames, money } from './format';
+import { t } from './i18n';
 
 /** Plain-text summary for pasting into a chat. */
 export function summaryText(bill: Bill, breakdown: Breakdown): string {
@@ -7,8 +8,12 @@ export function summaryText(bill: Bill, breakdown: Breakdown): string {
   const { totals } = breakdown;
   const header =
     totals.adjustments === 0
-      ? `Bill split · ${money(totals.grand, currency)}`
-      : `Bill split · ${money(totals.grand, currency)} (${money(totals.items, currency)} + ${money(totals.adjustments, currency)} tip)`;
+      ? t('summaryText.header', { total: money(totals.grand, currency) })
+      : t('summaryText.headerWithTip', {
+          total: money(totals.grand, currency),
+          items: money(totals.items, currency),
+          tip: money(totals.adjustments, currency),
+        });
 
   const names = new Map(bill.diners.map((diner) => [diner.id, diner.name]));
   const name = (id: string) => names.get(id) ?? '?';
@@ -20,7 +25,9 @@ export function summaryText(bill: Bill, breakdown: Breakdown): string {
     return `${joinNames(payer.dinerIds.map(name))}: ${money(payer.total, currency)} (${shares})`;
   });
   if (breakdown.unassigned.total !== 0) {
-    lines.push(`Not assigned yet: ${money(breakdown.unassigned.total, currency)}`);
+    lines.push(
+      t('summaryText.unassigned', { amount: money(breakdown.unassigned.total, currency) }),
+    );
   }
 
   return [header, '', ...lines].join('\n');

@@ -8,20 +8,23 @@ import {
   type DinerGroup,
 } from '@bill-splitter/core';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import BreakdownLines from '@/components/BreakdownLines.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import SelectMark from '@/components/SelectMark.vue';
 import { usePayTogether } from '@/composables/usePayTogether';
 import { useSharedBill } from '@/composables/useSharedBill';
-import { fractionLabel, joinNames, money } from '@/lib/format';
+import { joinNames, money } from '@/lib/format';
 import { timeAgo } from '@/lib/relativeTime';
 import { reportLocation } from '@/lib/reportContext';
 import { loadJson, saveJson } from '@/lib/storage';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
+const { t, locale } = useI18n();
 
 const { bill, updatedAt, state, error, errorRef, setGroups } = useSharedBill(props.id);
 
@@ -111,7 +114,7 @@ async function changeGroups(next: DinerGroup[], message: string, record = true):
   const result = await setGroups(next);
   saving.value = false;
   if (result !== true) {
-    notify("Couldn't save that. Check your connection and try again.", false);
+    notify(t('guest.saveFailed'), false);
     return;
   }
   if (record) history.value.push(previous);
@@ -127,17 +130,20 @@ function payTogether(): void {
   );
   const next = groupDiners(bill.value.groups ?? [], selectedDinerIds.value, crypto.randomUUID());
   together.stop();
-  void changeGroups(next, `${names} pay together`);
+  void changeGroups(next, t('common.groupedToast', { names }));
 }
 
 function paySeparately(groupId: string, name: string): void {
   if (!bill.value) return;
-  void changeGroups(ungroup(bill.value.groups ?? [], groupId), `${name} pay separately`);
+  void changeGroups(
+    ungroup(bill.value.groups ?? [], groupId),
+    t('common.separatedToast', { names: name }),
+  );
 }
 
 function undo(): void {
   const previous = history.value.pop();
-  if (previous) void changeGroups(previous, 'Undone', false);
+  if (previous) void changeGroups(previous, t('guest.undone'), false);
   toast.value = null;
 }
 
@@ -157,20 +163,20 @@ function pick(diner: Diner): void {
       v-else-if="state === 'not_found'"
       class="flex flex-1 flex-col justify-center gap-3 text-center"
     >
-      <h1 class="text-2xl font-extrabold">This bill is no longer available</h1>
-      <p class="text-ink-muted">Shared bills are removed a few days after their last change.</p>
-      <RouterLink :to="{ name: 'home' }" class="btn-secondary mt-4"
-        >Split a bill of your own</RouterLink
-      >
+      <h1 class="text-2xl font-extrabold">{{ t('guest.notFoundTitle') }}</h1>
+      <p class="text-ink-muted">{{ t('guest.notFoundText') }}</p>
+      <RouterLink :to="{ name: 'home' }" class="btn-secondary mt-4">{{
+        t('guest.splitYourOwn')
+      }}</RouterLink>
     </section>
 
     <section
       v-else-if="state === 'error'"
       class="flex flex-1 flex-col justify-center gap-3 text-center"
     >
-      <h1 class="text-2xl font-extrabold">We couldn't load this bill</h1>
+      <h1 class="text-2xl font-extrabold">{{ t('guest.errorTitle') }}</h1>
       <p class="text-ink-muted">
-        {{ error === 'offline' ? 'Check your connection.' : 'Please try again in a moment.' }}
+        {{ error === 'offline' ? t('guest.checkConnection') : t('guest.tryLater') }}
       </p>
       <ErrorReference
         v-if="errorRef && error !== 'offline'"
@@ -181,7 +187,7 @@ function pick(diner: Diner): void {
         :to="reportLocation(route.fullPath, { ref: errorRef, topic: 'share' })"
         class="text-ink-muted text-sm font-semibold underline underline-offset-2"
       >
-        Report this problem
+        {{ t('common.reportThisProblem') }}
       </RouterLink>
     </section>
 
@@ -189,20 +195,27 @@ function pick(diner: Diner): void {
       <header class="flex flex-col gap-1.5">
         <p class="text-ink-muted flex items-center gap-2 text-[13px] font-semibold" role="status">
           <span class="size-2 rounded-full" :class="error ? 'bg-warning-line' : 'bg-success'" />
-          <template v-if="error">Can't refresh right now · showing the last version</template>
-          <template v-else-if="updatedAt">Updated {{ timeAgo(updatedAt, now) }}</template>
+          <template v-if="error">{{ t('guest.stale') }}</template>
+          <template v-else-if="updatedAt">
+            {{ t('guest.updated', { time: timeAgo(updatedAt, now, locale) }) }}
+          </template>
         </p>
         <h1 class="text-[26px] font-extrabold tracking-tight">
-          {{ bill.merchant ?? 'Shared bill' }}
+          {{ bill.merchant ?? t('guest.sharedBill') }}
         </h1>
         <p class="text-ink-muted text-[15px]">
-          {{ money(breakdown.totals.grand, currency) }} split between {{ rows.length }}
-          {{ rows.length === 1 ? 'person' : 'people' }}.
+          {{
+            t(
+              'guest.splitBetween',
+              { total: money(breakdown.totals.grand, currency), n: rows.length },
+              rows.length,
+            )
+          }}
         </p>
       </header>
 
       <section v-if="!me" class="card flex flex-col gap-3 p-4" aria-labelledby="who">
-        <h2 id="who" class="text-base font-bold">Who are you?</h2>
+        <h2 id="who" class="text-base font-bold">{{ t('guest.whoAreYou') }}</h2>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="{ diner } in rows"
@@ -220,14 +233,14 @@ function pick(diner: Diner): void {
       <section
         v-else
         class="bg-surface-raised border-warning-line flex flex-col gap-3.5 rounded-[22px] border-2 p-4.5"
-        aria-label="What you owe"
+        :aria-label="t('guest.whatYouOwe')"
       >
         <div class="flex items-center gap-3">
           <DinerAvatar :diner="me.diner" :size="44" />
           <div class="flex flex-1 flex-col">
-            <span class="text-ink-muted text-[13px] font-semibold"
-              >You, {{ me.diner.name }}, owe</span
-            >
+            <span class="text-ink-muted text-[13px] font-semibold">{{
+              t('guest.youOwe', { name: me.diner.name })
+            }}</span>
             <span
               class="text-[30px] font-extrabold tracking-tight tabular-nums"
               data-testid="my-total"
@@ -240,32 +253,11 @@ function pick(diner: Diner): void {
             class="border-line h-9 rounded-[10px] border px-3 text-[13px] font-semibold"
             @click="meId = null"
           >
-            Not you?
+            {{ t('guest.notYou') }}
           </button>
         </div>
         <div class="text-ink-soft flex flex-col gap-2 text-sm">
-          <p v-if="me.breakdown.items.length === 0">Nothing assigned to you yet.</p>
-          <div
-            v-for="line in me.breakdown.items"
-            :key="line.itemId"
-            class="flex justify-between gap-3"
-          >
-            <span>
-              <template v-if="fractionLabel(line.weight, line.totalWeight)">
-                {{ fractionLabel(line.weight, line.totalWeight) }} ·
-              </template>
-              {{ line.name }}
-            </span>
-            <span class="tabular-nums">{{ money(line.amount, currency) }}</span>
-          </div>
-          <div
-            v-for="line in me.breakdown.adjustments"
-            :key="line.adjustmentId"
-            class="border-line-soft flex justify-between border-t pt-2"
-          >
-            <span class="capitalize">{{ line.kind }}</span>
-            <span class="tabular-nums">{{ money(line.amount, currency) }}</span>
-          </div>
+          <BreakdownLines :breakdown="me.breakdown" :currency="currency" />
         </div>
         <div
           v-if="myGroup"
@@ -274,11 +266,12 @@ function pick(diner: Diner): void {
         >
           <span class="flex flex-1 flex-col">
             <span class="text-[13px] font-semibold">
-              Paying together with
               {{
-                joinNames(
-                  myGroup.members.filter((diner) => diner.id !== meId).map((diner) => diner.name),
-                )
+                t('guest.payingTogetherWith', {
+                  names: joinNames(
+                    myGroup.members.filter((diner) => diner.id !== meId).map((diner) => diner.name),
+                  ),
+                })
               }}
             </span>
             <span class="text-ink-muted text-xs">{{ myGroup.shares }}</span>
@@ -294,7 +287,7 @@ function pick(diner: Diner): void {
               :disabled="saving"
               @click="paySeparately(myGroup.payer.groupId, myGroup.name)"
             >
-              Pay separately
+              {{ t('common.paySeparately') }}
             </button>
           </span>
         </div>
@@ -308,8 +301,8 @@ function pick(diner: Diner): void {
       </p>
 
       <section v-if="selecting" class="flex flex-col gap-2.5" aria-labelledby="pick">
-        <h2 id="pick" class="section-label mt-2">Who pays together?</h2>
-        <ul class="card flex flex-col" aria-label="Pick who pays together">
+        <h2 id="pick" class="section-label mt-2">{{ t('common.whoPaysTogether') }}</h2>
+        <ul class="card flex flex-col" :aria-label="t('guest.pickList')">
           <li
             v-for="row in payerRows"
             :key="row.key"
@@ -342,7 +335,9 @@ function pick(diner: Diner): void {
 
       <section v-else-if="others.length" class="flex flex-col gap-2.5" aria-labelledby="everyone">
         <div class="mt-2 flex items-center justify-between">
-          <h2 id="everyone" class="section-label">{{ me ? 'Everyone else' : 'Everyone' }}</h2>
+          <h2 id="everyone" class="section-label">
+            {{ me ? t('guest.everyoneElse') : t('guest.everyone') }}
+          </h2>
           <div class="flex items-center gap-3">
             <button
               v-if="history.length"
@@ -352,7 +347,7 @@ function pick(diner: Diner): void {
               @click="undo"
             >
               <AppIcon name="undo" :size="15" />
-              Undo
+              {{ t('common.undo') }}
             </button>
             <button
               v-if="payerRows.length > 1"
@@ -361,7 +356,7 @@ function pick(diner: Diner): void {
               @click="together.start()"
             >
               <AppIcon name="link" :size="15" />
-              Pay together
+              {{ t('common.payTogether') }}
             </button>
           </div>
         </div>
@@ -395,7 +390,7 @@ function pick(diner: Diner): void {
                 :disabled="saving"
                 @click="paySeparately(row.payer.groupId, row.name)"
               >
-                Pay separately
+                {{ t('common.paySeparately') }}
               </button>
             </span>
           </li>
@@ -404,7 +399,7 @@ function pick(diner: Diner): void {
 
       <div v-if="selecting" class="bg-surface sticky bottom-0 mt-auto flex gap-2.5 pt-3 pb-2">
         <button type="button" class="btn-secondary h-15 flex-1" @click="together.stop()">
-          Cancel
+          {{ t('common.cancel') }}
         </button>
         <button
           type="button"
@@ -413,7 +408,11 @@ function pick(diner: Diner): void {
           @click="payTogether"
         >
           <AppIcon name="link" />
-          {{ canGroup ? `Pay together (${selectedDinerIds.length})` : 'Pick 2 or more' }}
+          {{
+            canGroup
+              ? t('common.payTogetherCount', { n: selectedDinerIds.length })
+              : t('common.pickTwoOrMore')
+          }}
         </button>
       </div>
 
@@ -436,19 +435,21 @@ function pick(diner: Diner): void {
             class="shrink-0 font-bold underline underline-offset-2"
             @click="undo"
           >
-            Undo
+            {{ t('common.undo') }}
           </button>
         </div>
       </Transition>
 
       <p v-if="!selecting" class="text-ink-muted mt-auto pt-6 text-center text-[13px]">
-        Split with
-        <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold"
-          >Bill Splitter</RouterLink
-        >
+        {{ t('guest.splitWith') }}
+        <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold">{{
+          t('common.appName')
+        }}</RouterLink>
         ·
-        <RouterLink :to="reportLocation(route.fullPath, { topic: 'share' })" class="font-semibold"
-          >Report a problem</RouterLink
+        <RouterLink
+          :to="reportLocation(route.fullPath, { topic: 'share' })"
+          class="font-semibold"
+          >{{ t('common.reportProblem') }}</RouterLink
         >
       </p>
     </template>

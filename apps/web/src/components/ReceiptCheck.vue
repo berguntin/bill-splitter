@@ -1,28 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { money } from '@/lib/format';
 import { useBillStore } from '@/stores/bill';
 import AppIcon from './AppIcon.vue';
 
 const store = useBillStore();
+const { t } = useI18n();
 
 const state = computed(() => {
   const { receiptDifference, totals } = store.breakdown;
   const count = store.bill.items.length;
-  const summary = `${count} ${count === 1 ? 'item' : 'items'} · ${money(totals.items, store.bill.currency)}`;
+  const summary = `${t('common.items', { n: count }, count)} · ${money(totals.items, store.bill.currency)}`;
 
   if (receiptDifference === null)
-    return { tone: 'neutral', title: 'Items total', summary } as const;
+    return { tone: 'neutral', title: t('receiptCheck.total'), summary } as const;
   if (receiptDifference === 0) {
-    return { tone: 'success', title: 'Items add up to the receipt total', summary } as const;
+    return { tone: 'success', title: t('receiptCheck.matches'), summary } as const;
   }
   const gap = money(Math.abs(receiptDifference), store.bill.currency);
   return {
     tone: 'warning',
     title:
       receiptDifference > 0
-        ? `${gap} missing compared to the receipt`
-        : `${gap} more than the receipt total`,
+        ? t('receiptCheck.missing', { amount: gap })
+        : t('receiptCheck.extra', { amount: gap }),
     summary,
   } as const;
 });

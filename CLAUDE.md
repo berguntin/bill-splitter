@@ -1,7 +1,10 @@
 # Conventions
 
 - Everything in this repository is written in English: code, identifiers,
-  comments, commit messages, documentation and UI copy (until i18n lands).
+  comments, commit messages and documentation.
+- UI copy is never hard-coded: it goes through vue-i18n (`t('screen.key')`)
+  with the English text in `apps/web/src/locales/en.ts` and its translation in
+  `es.ts` (type checking requires every key in both).
 - Money is always an integer number of cents (`Cents`). Never use floats for
   amounts, and divide amounts only through `allocate()` from `@bill-splitter/core`.
 - Domain and money logic belongs in `packages/core`, which must stay free of

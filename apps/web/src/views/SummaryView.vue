@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { parseMoney, type Diner, type Payer } from '@bill-splitter/core';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
 import BreakdownLines from '@/components/BreakdownLines.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
@@ -12,6 +13,7 @@ import { usePayTogether } from '@/composables/usePayTogether';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
+const { t } = useI18n();
 const currency = computed(() => store.bill.currency);
 
 const TIP_OPTIONS = [
@@ -71,14 +73,14 @@ function payTogether(): void {
   stopGrouping();
   if (groupId) {
     expanded.value = `group:${groupId}`;
-    notify(`${names} pay together`, true);
+    notify(t('common.groupedToast', { names }), true);
   }
 }
 
 function separate(payer: Extract<Payer, { kind: 'group' }>, diners: Diner[]): void {
   store.ungroup(payer.groupId);
   expanded.value = null;
-  notify(`${joinNames(diners.map((diner) => diner.name))} pay separately`, true);
+  notify(t('common.separatedToast', { names: joinNames(diners.map((diner) => diner.name)) }), true);
 }
 
 function undo(): void {
@@ -117,21 +119,21 @@ function notify(message: string, withUndo = false): void {
 async function copy(): Promise<void> {
   try {
     await navigator.clipboard.writeText(summaryText(store.bill, store.breakdown));
-    notify('Copied to the clipboard');
+    notify(t('summary.copied'));
   } catch {
-    notify('Could not copy. Try sharing instead.');
+    notify(t('summary.copyFailed'));
   }
 }
 </script>
 
 <template>
   <main class="flex min-h-dvh flex-col gap-4 pt-14">
-    <StepHeader title="The split" :back="{ name: 'assign' }">
+    <StepHeader :title="t('summary.title')" :back="{ name: 'assign' }">
       <template #actions>
         <button
           type="button"
           class="icon-btn"
-          aria-label="Undo"
+          :aria-label="t('common.undo')"
           :disabled="!store.canUndo"
           @click="undo"
         >
@@ -144,7 +146,9 @@ async function copy(): Promise<void> {
       <div class="flex items-end justify-between">
         <div class="flex flex-col gap-0.5">
           <span class="text-inverse-muted text-[13px] font-semibold">
-            {{ store.breakdown.totals.adjustments ? 'Total with tip' : 'Total' }}
+            {{
+              store.breakdown.totals.adjustments ? t('summary.totalWithTip') : t('summary.total')
+            }}
           </span>
           <span class="text-[34px] font-extrabold tracking-tight tabular-nums">
             {{ money(store.breakdown.totals.grand, currency) }}
@@ -154,12 +158,14 @@ async function copy(): Promise<void> {
           v-if="store.breakdown.totals.adjustments"
           class="text-inverse-muted text-right text-[13px]"
         >
-          {{ money(store.breakdown.totals.items, currency) }} food<br />
-          + {{ money(store.breakdown.totals.adjustments, currency) }} tip
+          {{ t('summary.food', { amount: money(store.breakdown.totals.items, currency) }) }}<br />
+          {{
+            t('summary.tipLine', { amount: money(store.breakdown.totals.adjustments, currency) })
+          }}
         </span>
       </div>
 
-      <div class="flex gap-1.5" role="group" aria-label="Tip">
+      <div class="flex gap-1.5" role="group" :aria-label="t('summary.tip')">
         <button
           v-for="option in TIP_OPTIONS"
           :key="option.label"
@@ -173,7 +179,7 @@ async function copy(): Promise<void> {
           :aria-pressed="isTipSelected(option.basisPoints)"
           @click="pickTip(option.basisPoints)"
         >
-          {{ option.label }}
+          {{ option.basisPoints === 0 ? t('summary.noTip') : option.label }}
         </button>
         <button
           type="button"
@@ -182,11 +188,11 @@ async function copy(): Promise<void> {
           :aria-pressed="customTipOpen"
           @click="customTipOpen = true"
         >
-          Other
+          {{ t('summary.other') }}
         </button>
       </div>
       <label v-if="customTipOpen" class="flex items-center gap-3">
-        <span class="flex-1 text-sm font-semibold">Tip amount</span>
+        <span class="flex-1 text-sm font-semibold">{{ t('summary.tipAmount') }}</span>
         <input
           v-model="customTip"
           class="bg-inverse-ink/10 text-inverse-ink h-11 w-28 rounded-xl px-3 text-right font-semibold tabular-nums outline-none"
@@ -204,12 +210,12 @@ async function copy(): Promise<void> {
       class="bg-warning-soft text-warning-ink flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold"
     >
       <AppIcon name="warning" />
-      {{ money(store.breakdown.unassigned.total, currency) }} is not assigned to anyone yet
+      {{ t('summary.notAssigned', { amount: money(store.breakdown.unassigned.total, currency) }) }}
     </RouterLink>
 
     <div class="flex items-center justify-between">
       <h2 class="text-[15px] font-bold">
-        {{ selecting ? 'Who pays together?' : 'Who pays what' }}
+        {{ selecting ? t('common.whoPaysTogether') : t('summary.whoPaysWhat') }}
       </h2>
       <button
         v-if="!selecting && rows.length > 1"
@@ -218,11 +224,11 @@ async function copy(): Promise<void> {
         @click="startGrouping"
       >
         <AppIcon name="link" :size="16" />
-        Pay together
+        {{ t('common.payTogether') }}
       </button>
     </div>
 
-    <ul class="flex flex-col gap-2.5" aria-label="What each person owes">
+    <ul class="flex flex-col gap-2.5" :aria-label="t('summary.listLabel')">
       <li v-for="row in rows" :key="row.key" class="card flex flex-col">
         <button
           type="button"
@@ -249,7 +255,7 @@ async function copy(): Promise<void> {
               class="text-ink-muted flex items-center gap-1 text-[13px] font-semibold"
             >
               <AppIcon name="link" :size="12" />
-              Paying together
+              {{ t('common.payingTogether') }}
             </span>
           </span>
           <span class="text-[17px] font-extrabold tabular-nums">
@@ -299,7 +305,7 @@ async function copy(): Promise<void> {
               class="text-ink-muted self-start text-sm font-semibold underline underline-offset-2"
               @click="separate(row.payer, row.diners)"
             >
-              Pay separately
+              {{ t('common.paySeparately') }}
             </button>
           </div>
         </template>
@@ -307,20 +313,26 @@ async function copy(): Promise<void> {
     </ul>
 
     <div v-if="selecting" class="bg-surface sticky bottom-0 mt-auto flex gap-2.5 pt-3 pb-8">
-      <button type="button" class="btn-secondary h-15 flex-1" @click="stopGrouping">Cancel</button>
+      <button type="button" class="btn-secondary h-15 flex-1" @click="stopGrouping">
+        {{ t('common.cancel') }}
+      </button>
       <button type="button" class="btn-primary flex-[2]" :disabled="!canGroup" @click="payTogether">
         <AppIcon name="link" />
-        {{ canGroup ? `Pay together (${selectedDinerIds.length})` : 'Pick 2 or more' }}
+        {{
+          canGroup
+            ? t('common.payTogetherCount', { n: selectedDinerIds.length })
+            : t('common.pickTwoOrMore')
+        }}
       </button>
     </div>
     <div v-else class="bg-surface sticky bottom-0 mt-auto flex gap-2.5 pt-3 pb-8">
       <button type="button" class="btn-secondary h-15 flex-1" @click="copy">
         <AppIcon name="copy" :size="18" />
-        Copy
+        {{ t('summary.copy') }}
       </button>
       <RouterLink :to="{ name: 'share' }" class="btn-primary flex-[2]">
         <AppIcon name="qr" />
-        Share with the table
+        {{ t('summary.share') }}
       </RouterLink>
     </div>
 
@@ -343,7 +355,7 @@ async function copy(): Promise<void> {
           class="text-inverse-ink shrink-0 font-bold underline underline-offset-2"
           @click="undo"
         >
-          Undo
+          {{ t('common.undo') }}
         </button>
       </div>
     </Transition>
