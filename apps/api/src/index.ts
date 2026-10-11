@@ -30,6 +30,8 @@ process.on('uncaughtException', (error) => {
 // Let in-flight requests finish and close the database connection on shutdown.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
+    // Live update streams never end on their own; close them so the server can.
+    dependencies.billEvents.close();
     server.close(
       () =>
         void Promise.allSettled([dependencies.close(), flushSentry()]).finally(() =>

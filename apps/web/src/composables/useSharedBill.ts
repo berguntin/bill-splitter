@@ -1,12 +1,12 @@
 import type { Bill, DinerGroup } from '@bill-splitter/core';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { fetchSharedBill, setSharedGroups, type Failure, type ShareError } from '@/lib/api';
-
-export const POLL_INTERVAL_MS = 5000;
+import { followSharedBill } from '@/lib/followSharedBill';
 
 /**
- * Follows a shared bill by polling. Requests carry the last ETag, so an
- * unchanged bill costs a bodiless 304. Polling pauses while the tab is hidden.
+ * Follows a shared bill: live through server-sent events, with polling as a
+ * fallback. Requests carry the last ETag, so an unchanged bill costs a
+ * bodiless 304. Everything pauses while the tab is hidden.
  */
 export function useSharedBill(id: string) {
   const bill = ref<Bill | null>(null);
@@ -15,10 +15,19 @@ export function useSharedBill(id: string) {
   const error = ref<ShareError | null>(null);
   const errorRef = ref<string | null>(null);
   let etag: string | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
+  let unfollow: (() => void) | null = null;
+  let refreshing: Promise<void> | null = null;
 
-  async function refresh(): Promise<void> {
+  /** Fetches the bill; overlapping calls (an event during a poll) share one request. */
+  function refresh(): Promise<void> {
+    refreshing ??= load().finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
+  }
+
+  async function load(): Promise<void> {
     const result = await fetchSharedBill(id, etag);
     if (stopped) return;
     if (result.ok) {
@@ -32,35 +41,25 @@ export function useSharedBill(id: string) {
       state.value = 'ready';
     } else if (result.error === 'not_found') {
       state.value = 'not_found';
-      return; // Expired or never existed; nothing to poll for.
+      // Expired or never existed; nothing to follow.
+      unfollow?.();
+      unfollow = null;
     } else {
       error.value = result.error;
       errorRef.value = result.requestId;
       // Keep showing the last known bill when a refresh fails.
       if (!bill.value) state.value = 'error';
     }
-    schedule();
-  }
-
-  function schedule(): void {
-    clearTimeout(timer);
-    if (!stopped && !document.hidden) timer = setTimeout(() => void refresh(), POLL_INTERVAL_MS);
-  }
-
-  function onVisibilityChange(): void {
-    if (document.hidden) clearTimeout(timer);
-    else void refresh();
   }
 
   onMounted(() => {
-    document.addEventListener('visibilitychange', onVisibilityChange);
     void refresh();
+    unfollow = followSharedBill(id, () => void refresh());
   });
 
   onBeforeUnmount(() => {
     stopped = true;
-    clearTimeout(timer);
-    document.removeEventListener('visibilitychange', onVisibilityChange);
+    unfollow?.();
   });
 
   /**

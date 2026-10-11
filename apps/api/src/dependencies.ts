@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { createBillEvents, type BillEvents } from './bills/events';
 import { createMongoBillStore } from './bills/mongo';
 import { createMemoryBillStore, type BillStore } from './bills/store';
 import type { Config } from './config';
@@ -14,6 +15,7 @@ import { createMemoryReportStore, type ReportStore } from './reports/store';
 export interface Dependencies {
   receiptParser: ReceiptParser;
   billStore: BillStore;
+  billEvents: BillEvents;
   reportStore: ReportStore;
   reportNotifier: ReportNotifier;
   logger: Logger;
@@ -56,13 +58,17 @@ export async function createDependencies(
       })
     : noopNotifier;
 
+  const billEvents = createBillEvents();
+
   return {
     receiptParser,
     billStore,
+    billEvents,
     reportStore,
     reportNotifier,
     logger,
     close: async () => {
+      billEvents.close();
       await mongo?.close();
     },
   };
