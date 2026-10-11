@@ -10,7 +10,7 @@
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
     "test:e2e": "playwright test",
-    "start": "serve dist --single --no-clipboard --listen tcp://0.0.0.0:${PORT:-4173}"
+    "start": "serve dist --no-clipboard --listen tcp://0.0.0.0:${PORT:-4173}"
   },
   "dependencies": {
     "@bill-splitter/core": "workspace:*",
