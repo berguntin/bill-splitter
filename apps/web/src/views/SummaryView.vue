@@ -68,19 +68,6 @@ async function copy(): Promise<void> {
     notify('Could not copy. Try sharing instead.');
   }
 }
-
-async function share(): Promise<void> {
-  const text = summaryText(store.bill, store.breakdown);
-  if (typeof navigator.share !== 'function') {
-    await copy();
-    return;
-  }
-  try {
-    await navigator.share({ title: 'Bill split', text });
-  } catch {
-    // The person closed the share sheet; nothing to do.
-  }
-}
 </script>
 
 <template>
@@ -209,10 +196,10 @@ async function share(): Promise<void> {
         <AppIcon name="copy" :size="18" />
         Copy
       </button>
-      <button type="button" class="btn-primary flex-[2]" @click="share">
-        <AppIcon name="share" />
-        Share
-      </button>
+      <RouterLink :to="{ name: 'share' }" class="btn-primary flex-[2]">
+        <AppIcon name="qr" />
+        Share with the table
+      </RouterLink>
     </div>
 
     <Transition

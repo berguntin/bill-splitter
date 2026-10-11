@@ -64,8 +64,8 @@ export interface Bill {
   adjustments: Adjustment[];
   /** Total printed on the receipt, used to detect reading errors. */
   receiptTotal?: Cents;
-  /** How the items were entered. Missing means by hand. */
-  source?: 'manual' | 'scan';
+  /** How the items were entered: by hand (or missing), from a photo, or by another app. */
+  source?: 'manual' | 'scan' | 'import';
   /** Business name, when the bill was scanned from a receipt. */
   merchant?: string;
 }

@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
 import type { ReceiptParser } from '../src/receipts/parser';
+import { testDependencies } from './helpers';
 
 const config = loadConfig({ NODE_ENV: 'test', RECEIPT_RATE_LIMIT: '3' });
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
 
 function appWith(parse: ReceiptParser['parse']) {
-  return createApp(config, { receiptParser: { parse } });
+  return createApp(config, testDependencies({ receiptParser: { parse } }));
 }
 
 describe('POST /api/receipts/parse', () => {
@@ -63,7 +64,7 @@ describe('POST /api/receipts/parse', () => {
       .send(Buffer.alloc(7 * 1024 * 1024));
 
     expect(response.status).toBe(413);
-    expect(response.body).toEqual({ error: 'image_too_large' });
+    expect(response.body).toEqual({ error: 'payload_too_large' });
   });
 
   it('rate limits each client', async () => {

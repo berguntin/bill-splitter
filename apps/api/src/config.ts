@@ -25,6 +25,12 @@ const schema = z
     RECEIPT_PARSER: z.enum(['claude', 'fake']).optional(),
     /** Receipt scans allowed per client IP every 10 minutes. */
     RECEIPT_RATE_LIMIT: z.coerce.number().int().positive().default(20),
+    /** MongoDB connection string for shared bills. Without it, bills live in memory. */
+    MONGODB_URI: optionalString,
+    /** Database for shared bills, so connection strings without one (as Atlas gives) work. */
+    MONGODB_DATABASE: z.string().trim().min(1).default('bill-splitter'),
+    /** Days a shared bill is kept after its last update. */
+    BILL_TTL_DAYS: z.coerce.number().positive().default(7),
   })
   .transform((config, context) => {
     const receiptParser = config.RECEIPT_PARSER ?? (config.ANTHROPIC_API_KEY ? 'claude' : 'fake');
@@ -40,6 +46,13 @@ const schema = z
         code: 'custom',
         path: ['RECEIPT_PARSER'],
         message: 'The fake receipt parser cannot run in production; set ANTHROPIC_API_KEY',
+      });
+    }
+    if (!config.MONGODB_URI && config.NODE_ENV === 'production') {
+      context.addIssue({
+        code: 'custom',
+        path: ['MONGODB_URI'],
+        message: 'MONGODB_URI is required in production; shared bills would be lost on restart',
       });
     }
     return { ...config, RECEIPT_PARSER: receiptParser };

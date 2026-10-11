@@ -3,38 +3,19 @@ import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
 import type { Config } from './config';
-import { createClaudeExtractor } from './receipts/claude';
-import { createFakeReceiptParser } from './receipts/fake';
-import { createReceiptParser, type ReceiptParser } from './receipts/parser';
+import type { Dependencies } from './dependencies';
+import { createBillsRouter } from './routes/bills';
 import { healthRouter } from './routes/health';
 import { createReceiptsRouter } from './routes/receipts';
 
-export interface Dependencies {
-  receiptParser: ReceiptParser;
-}
-
-function defaultDependencies(config: Config): Dependencies {
-  const receiptParser =
-    config.RECEIPT_PARSER === 'claude'
-      ? createReceiptParser(
-          createClaudeExtractor(new Anthropic({ apiKey: config.ANTHROPIC_API_KEY ?? null })),
-        )
-      : createFakeReceiptParser();
-  return { receiptParser };
-}
-
 /** Builds the Express app without binding a port, so tests can drive it directly. */
-export function createApp(
-  config: Config,
-  dependencies: Dependencies = defaultDependencies(config),
-): express.Express {
+export function createApp(config: Config, dependencies: Dependencies): express.Express {
   const app = express();
 
   app.disable('x-powered-by');
   app.set('trust proxy', config.TRUST_PROXY);
   app.use(helmet());
   app.use(cors({ origin: config.CORS_ORIGINS }));
-  app.use(express.json({ limit: '100kb' }));
 
   app.use('/api/health', healthRouter);
   app.use(
@@ -43,6 +24,7 @@ export function createApp(
       requestsPer10Minutes: config.RECEIPT_RATE_LIMIT,
     }),
   );
+  app.use('/api/bills', createBillsRouter(dependencies.billStore));
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'not_found' });
@@ -55,7 +37,7 @@ export function createApp(
         ? Number((error as { status: unknown }).status)
         : 500;
     if (status === 413) {
-      res.status(413).json({ error: 'image_too_large' });
+      res.status(413).json({ error: 'payload_too_large' });
       return;
     }
     if (status >= 400 && status < 500 && error instanceof Error && 'type' in error) {

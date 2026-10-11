@@ -23,9 +23,18 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: `pnpm build && pnpm preview --port ${PORT} --strictPort`,
-    port: PORT,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      // Real API with in-memory storage and the fake receipt parser.
+      command: 'pnpm --filter @bill-splitter/api exec tsx src/index.ts',
+      port: 3000,
+      reuseExistingServer: !process.env.CI,
+      env: { PORT: '3000', NODE_ENV: 'test', RECEIPT_PARSER: 'fake' },
+    },
+    {
+      command: `pnpm build && pnpm preview --port ${PORT} --strictPort`,
+      port: PORT,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });

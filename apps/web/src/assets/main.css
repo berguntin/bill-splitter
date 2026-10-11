@@ -35,6 +35,10 @@
   --color-camera-ink: #f5efe7;
   --color-camera-muted: #c9bfb3;
 
+  /* QR codes stay dark on light in both themes; inverted codes scan poorly. */
+  --color-qr-dark: #1f1a14;
+  --color-qr-light: #ffffff;
+
   --color-success-soft: #e3f4ea;
   --color-success-ink: #145c3c;
   --color-success: #2f9e6b;

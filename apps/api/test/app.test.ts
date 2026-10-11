@@ -2,8 +2,9 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
+import { testDependencies } from './helpers';
 
-const app = createApp(loadConfig({ NODE_ENV: 'test' }));
+const app = createApp(loadConfig({ NODE_ENV: 'test' }), testDependencies());
 
 describe('API', () => {
   it('reports health', async () => {
@@ -34,8 +35,16 @@ describe('loadConfig', () => {
     expect(loadConfig({ ANTHROPIC_API_KEY: ' ' }).RECEIPT_PARSER).toBe('fake');
   });
 
-  it('refuses to run without a real receipt parser in production', () => {
+  it('uses its own database name unless told otherwise', () => {
+    expect(loadConfig({}).MONGODB_DATABASE).toBe('bill-splitter');
+    expect(loadConfig({ MONGODB_DATABASE: 'staging' }).MONGODB_DATABASE).toBe('staging');
+  });
+
+  it('refuses to run in production without a real receipt parser or database', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => loadConfig({ NODE_ENV: 'production', ANTHROPIC_API_KEY: 'sk-test' })).toThrow(
+      /MONGODB_URI/,
+    );
     expect(() => loadConfig({ RECEIPT_PARSER: 'claude' })).toThrow(/ANTHROPIC_API_KEY/);
   });
 });
