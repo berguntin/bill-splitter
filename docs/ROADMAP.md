@@ -44,6 +44,12 @@
 - [x] Bills can be created from existing line items, so Camarero Digital can
       hand over a table's order without scanning (see `docs/API.md`)
 
+## Phase 3.5: Paying together
+
+- [x] Group diners who settle up as one (a couple, a friend covering another):
+      the group's total is the sum of its members', each share stays visible
+- [x] Grouping and separating can be undone; groups reach shared bills
+
 ## Phase 4: Polish and launch
 
 - PWA, dark mode, accessibility review, i18n (English and Spanish)

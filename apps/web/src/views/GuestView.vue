@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computeBreakdown, type Diner } from '@bill-splitter/core';
+import { computeBreakdown, payers, type Diner } from '@bill-splitter/core';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import { useSharedBill } from '@/composables/useSharedBill';
-import { fractionLabel, money } from '@/lib/format';
+import { fractionLabel, joinNames, money } from '@/lib/format';
 import { timeAgo } from '@/lib/relativeTime';
 import { reportLocation } from '@/lib/reportContext';
 import { loadJson, saveJson } from '@/lib/storage';
@@ -38,7 +38,44 @@ const rows = computed(() => {
 });
 
 const me = computed(() => rows.value.find((row) => row.diner.id === meId.value) ?? null);
-const others = computed(() => rows.value.filter((row) => row.diner.id !== meId.value));
+
+/** Diners on their own and groups paying together, as the owner set them up. */
+const payerRows = computed(() => {
+  if (!bill.value || !breakdown.value) return [];
+  const diners = new Map(bill.value.diners.map((diner) => [diner.id, diner]));
+  return payers(bill.value, breakdown.value).map((payer) => {
+    const ids = payer.kind === 'group' ? payer.dinerIds : [payer.dinerId];
+    const members = ids.flatMap((id) => diners.get(id) ?? []);
+    return {
+      key: payer.kind === 'group' ? payer.groupId : payer.dinerId,
+      payer,
+      members,
+      name: joinNames(members.map((diner) => diner.name)),
+      shares:
+        payer.kind === 'group'
+          ? payer.members
+              .map(
+                (member) =>
+                  `${diners.get(member.dinerId)?.name ?? '?'} ${money(member.total, currency.value)}`,
+              )
+              .join(' + ')
+          : null,
+    };
+  });
+});
+
+/** The group the viewer pays with, if any. */
+const myGroup = computed(
+  () =>
+    payerRows.value.find(
+      (row) => row.payer.kind === 'group' && row.members.some((diner) => diner.id === meId.value),
+    ) ?? null,
+);
+const others = computed(() =>
+  payerRows.value.filter(
+    (row) => row !== myGroup.value && !row.members.some((diner) => diner.id === meId.value),
+  ),
+);
 const currency = computed(() => bill.value?.currency ?? 'EUR');
 
 function pick(diner: Diner): void {
@@ -167,6 +204,26 @@ function pick(diner: Diner): void {
             <span class="tabular-nums">{{ money(line.amount, currency) }}</span>
           </div>
         </div>
+        <div
+          v-if="myGroup"
+          class="bg-surface-sunken flex items-center gap-3 rounded-2xl px-3.5 py-3"
+          data-testid="my-group"
+        >
+          <span class="flex flex-1 flex-col">
+            <span class="text-[13px] font-semibold">
+              Paying together with
+              {{
+                joinNames(
+                  myGroup.members.filter((diner) => diner.id !== meId).map((diner) => diner.name),
+                )
+              }}
+            </span>
+            <span class="text-ink-muted text-xs">{{ myGroup.shares }}</span>
+          </span>
+          <span class="text-base font-extrabold tabular-nums">
+            {{ money(myGroup.payer.total, currency) }}
+          </span>
+        </div>
       </section>
 
       <p
@@ -180,14 +237,25 @@ function pick(diner: Diner): void {
         <h2 id="everyone" class="section-label mt-2">{{ me ? 'Everyone else' : 'Everyone' }}</h2>
         <ul class="card flex flex-col">
           <li
-            v-for="{ diner, breakdown: entry } in others"
-            :key="diner.id"
+            v-for="row in others"
+            :key="row.key"
             class="border-line-soft flex items-center gap-3 border-b px-4 py-3 last:border-b-0"
           >
-            <DinerAvatar :diner="diner" :size="32" />
-            <span class="flex-1 text-[15px] font-semibold">{{ diner.name }}</span>
+            <span class="flex shrink-0">
+              <DinerAvatar
+                v-for="(diner, index) in row.members"
+                :key="diner.id"
+                :diner="diner"
+                :size="32"
+                :class="{ 'border-surface-raised -ml-2.5 border-2': index > 0 }"
+              />
+            </span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate text-[15px] font-semibold">{{ row.name }}</span>
+              <span v-if="row.shares" class="text-ink-muted text-xs">{{ row.shares }}</span>
+            </span>
             <span class="text-[15px] font-bold tabular-nums">{{
-              money(entry.total, currency)
+              money(row.payer.total, currency)
             }}</span>
           </li>
         </ul>

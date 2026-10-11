@@ -52,4 +52,15 @@ describe('summaryText', () => {
       'Bill split · €22.00 (€20.00 + €2.00 tip)\n\nAna: €7.00\nBen: €7.00\nNot assigned yet: €8.00',
     );
   });
+
+  it('adds up people paying together', () => {
+    const bill: Bill = {
+      ...base,
+      diners: [...base.diners, { id: 'cleo', name: 'Cleo', color: 'amber' }],
+      groups: [{ id: 'g', dinerIds: ['ana', 'cleo'] }],
+    };
+    expect(summaryText(bill, computeBreakdown(bill))).toBe(
+      'Bill split · €12.00\n\nAna & Cleo: €8.00 (Ana €4.00 + Cleo €4.00)\nBen: €4.00',
+    );
+  });
 });

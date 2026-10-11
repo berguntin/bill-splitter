@@ -34,3 +34,9 @@ function gcd(a: number, b: number): number {
 export function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
 }
+
+/** `Ana & Ben`, `Ana, Ben & Cleo`. */
+export function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} & ${names.at(-1)}`;
+}

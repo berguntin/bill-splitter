@@ -17,7 +17,8 @@ export type IconName =
   | 'warning'
   | 'qr'
   | 'flag'
-  | 'image';
+  | 'image'
+  | 'link';
 
 withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 20 });
 </script>
@@ -72,6 +73,10 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 20 });
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" />
+    </template>
+    <template v-else-if="name === 'link'">
+      <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" />
+      <path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" />
     </template>
     <template v-else-if="name === 'flag'">
       <path d="M5 21V4" />
