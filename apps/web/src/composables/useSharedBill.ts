@@ -13,6 +13,7 @@ export function useSharedBill(id: string) {
   const updatedAt = ref<Date | null>(null);
   const state = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
   const error = ref<ShareError | null>(null);
+  const errorRef = ref<string | null>(null);
   let etag: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
@@ -22,6 +23,7 @@ export function useSharedBill(id: string) {
     if (stopped) return;
     if (result.ok) {
       error.value = null;
+      errorRef.value = null;
       if (result.changed) {
         bill.value = result.value.bill;
         updatedAt.value = new Date(result.value.updatedAt);
@@ -33,6 +35,7 @@ export function useSharedBill(id: string) {
       return; // Expired or never existed; nothing to poll for.
     } else {
       error.value = result.error;
+      errorRef.value = result.requestId;
       // Keep showing the last known bill when a refresh fails.
       if (!bill.value) state.value = 'error';
     }
@@ -60,5 +63,5 @@ export function useSharedBill(id: string) {
     document.removeEventListener('visibilitychange', onVisibilityChange);
   });
 
-  return { bill, updatedAt, state, error, refresh };
+  return { bill, updatedAt, state, error, errorRef, refresh };
 }

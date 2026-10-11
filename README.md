@@ -73,6 +73,19 @@ watch paths and health checks. Don't set custom build or start commands in the
 dashboard: they override both. `VITE_API_URL` is read at build time, so
 redeploy the web service after changing it.
 
+## Monitoring
+
+- **Logs.** The API writes one JSON line per request (id, method, path, status,
+  latency) plus events such as `receipt scanned` (models tried, issues found,
+  tokens used, timings) and `bill shared`. Bill contents, names, images, IP
+  addresses and tokens are never logged. Filter by `req.id` in the host's log
+  viewer to follow one request. Set `LOG_LEVEL=debug` to also log bill updates.
+- **Request ids.** The web app sends an `X-Request-Id` with each call and shows
+  it next to errors (`Ref. 7F3K-92QD`), so a report can be traced to its logs.
+- **Health.** `GET /api/health` returns 503 when MongoDB is unreachable. Point
+  an uptime monitor (for example UptimeRobot or Better Stack, both free) at it
+  to get an alert when the API goes down.
+
 ## How receipts are read
 
 The web app downscales the photo to 1600 px and sends it to

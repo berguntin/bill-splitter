@@ -43,6 +43,17 @@ function publicBody(record: StoredBill) {
  * link can read it. GET responses carry an ETag, so polling clients get a
  * cheap 304 while nothing changes.
  */
+/** Shape of a bill for logs, without names or amounts. */
+function summarize({ id, version, bill }: StoredBill) {
+  return {
+    id,
+    version,
+    source: bill.source,
+    diners: bill.diners.length,
+    items: bill.items.length,
+  };
+}
+
 export function createBillsRouter(store: BillStore): Router {
   const router = Router();
   const json = express.json({ limit: '200kb' });
@@ -50,11 +61,15 @@ export function createBillsRouter(store: BillStore): Router {
   router.post('/', limiter(30), json, async (req, res) => {
     const parsed = BodySchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'invalid_bill', issues: z.flattenError(parsed.error) });
+      const issues = z.flattenError(parsed.error);
+      // Field paths and messages only: never the bill itself.
+      req.log.warn({ issues }, 'invalid bill rejected');
+      res.status(400).json({ error: 'invalid_bill', issues });
       return;
     }
     // The store assigns the real id; this placeholder is replaced on insert.
     const { record, ownerToken } = await store.create(toBill(newBillId(), parsed.data.bill));
+    req.log.info({ bill: summarize(record) }, 'bill shared');
     res.status(201).json({ ...publicBody(record), ownerToken });
   });
 
@@ -71,14 +86,20 @@ export function createBillsRouter(store: BillStore): Router {
     }
     const parsed = BodySchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'invalid_bill', issues: z.flattenError(parsed.error) });
+      const issues = z.flattenError(parsed.error);
+      // Field paths and messages only: never the bill itself.
+      req.log.warn({ issues }, 'invalid bill rejected');
+      res.status(400).json({ error: 'invalid_bill', issues });
       return;
     }
 
     const result = await store.update(id, token, toBill(id, parsed.data.bill));
     if (result === 'not_found') res.status(404).json({ error: 'not_found' });
     else if (result === 'forbidden') res.status(403).json({ error: 'forbidden' });
-    else res.json(publicBody(result));
+    else {
+      req.log.debug({ bill: summarize(result) }, 'bill updated');
+      res.json(publicBody(result));
+    }
   });
 
   // Guests on the same restaurant wifi share an IP; each polls ~120 times per 10 minutes.

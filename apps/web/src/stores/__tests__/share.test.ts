@@ -113,6 +113,7 @@ describe('useShareStore', () => {
 
     expect(share.status).toBe('error');
     expect(share.error).toBe('offline');
+    expect(share.errorRef).toMatch(/^[0-9A-Z]{8}$/);
     expect(share.isShared).toBe(true);
   });
 

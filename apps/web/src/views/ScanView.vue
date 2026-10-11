@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
+import ErrorReference from '@/components/ErrorReference.vue';
 import { scanReceipt, type ScanError } from '@/lib/api';
 import { compressImage } from '@/lib/compressImage';
 import { useBillStore } from '@/stores/bill';
@@ -11,6 +12,8 @@ const router = useRouter();
 
 const state = ref<'idle' | 'reading' | 'error'>('idle');
 const error = ref<ScanError | null>(null);
+/** Shown for failures worth reporting, to find the request in the API's logs. */
+const errorRef = ref<string | null>(null);
 const previewUrl = ref<string | null>(null);
 const cameraInput = ref<HTMLInputElement | null>(null);
 const galleryInput = ref<HTMLInputElement | null>(null);
@@ -45,6 +48,8 @@ const ERROR_MESSAGES: Record<ScanError, { title: string; hint: string }> = {
   server: { title: 'Something went wrong on our side', hint: 'Please try again in a moment.' },
 };
 
+const REPORTABLE = new Set<ScanError>(['unreadable', 'timeout', 'server']);
+
 const message = computed(() => (error.value ? ERROR_MESSAGES[error.value] : null));
 
 async function onFileChosen(event: Event): Promise<void> {
@@ -67,10 +72,12 @@ async function onFileChosen(event: Event): Promise<void> {
       return;
     }
     error.value = result.error;
+    errorRef.value = REPORTABLE.has(result.error) ? result.requestId : null;
     state.value = 'error';
   } catch (caught) {
     if (caught instanceof DOMException && caught.name === 'AbortError') return;
     error.value = 'server';
+    errorRef.value = null;
     state.value = 'error';
   }
 }
@@ -160,6 +167,7 @@ onBeforeUnmount(() => {
       <div class="flex flex-col gap-1">
         <p class="font-bold">{{ message.title }}</p>
         <p class="text-camera-muted text-sm">{{ message.hint }}</p>
+        <ErrorReference v-if="errorRef" :request-id="errorRef" class="text-camera-muted" />
       </div>
       <div class="flex gap-2">
         <button

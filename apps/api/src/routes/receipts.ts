@@ -40,6 +40,23 @@ export function createReceiptsRouter(
 
       // The image is only held in memory for this request and never stored.
       const outcome = await parser.parse({ data: req.body, mediaType });
+      req.log.info(
+        {
+          scan: {
+            status: outcome.status,
+            imageBytes: req.body.length,
+            ...(outcome.status === 'ok'
+              ? {
+                  model: outcome.model,
+                  lines: outcome.receipt.lines.length,
+                  issues: outcome.issues.map((issue) => issue.type),
+                }
+              : {}),
+            attempts: outcome.attempts,
+          },
+        },
+        'receipt scanned',
+      );
 
       if (outcome.status === 'ok') {
         res.json({ receipt: outcome.receipt, issues: outcome.issues, model: outcome.model });

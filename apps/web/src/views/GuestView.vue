@@ -2,6 +2,7 @@
 import { computeBreakdown, type Diner } from '@bill-splitter/core';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
+import ErrorReference from '@/components/ErrorReference.vue';
 import { useSharedBill } from '@/composables/useSharedBill';
 import { fractionLabel, money } from '@/lib/format';
 import { timeAgo } from '@/lib/relativeTime';
@@ -9,7 +10,7 @@ import { loadJson, saveJson } from '@/lib/storage';
 
 const props = defineProps<{ id: string }>();
 
-const { bill, updatedAt, state, error } = useSharedBill(props.id);
+const { bill, updatedAt, state, error, errorRef } = useSharedBill(props.id);
 
 const meKey = `bill-splitter/guest/${props.id}/me`;
 const meId = ref<string | null>(
@@ -68,6 +69,11 @@ function pick(diner: Diner): void {
       <p class="text-ink-muted">
         {{ error === 'offline' ? 'Check your connection.' : 'Please try again in a moment.' }}
       </p>
+      <ErrorReference
+        v-if="errorRef && error !== 'offline'"
+        :request-id="errorRef"
+        class="text-ink-muted"
+      />
     </section>
 
     <template v-else-if="bill && breakdown">

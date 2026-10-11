@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
+import ErrorReference from '@/components/ErrorReference.vue';
 import QrCode from '@/components/QrCode.vue';
 import StepHeader from '@/components/StepHeader.vue';
 import { summaryText } from '@/lib/summaryText';
@@ -103,14 +104,19 @@ async function sendInChat(): Promise<void> {
       <div v-else class="bg-surface-sunken aspect-square w-full animate-pulse rounded-xl" />
     </div>
 
-    <p
+    <div
       v-if="errorMessage"
       role="alert"
       class="bg-warning-soft text-warning-ink rounded-2xl px-4 py-3 text-sm font-semibold"
     >
       {{ errorMessage }}
       <button type="button" class="ml-1 underline" @click="shareStore.share()">Retry</button>
-    </p>
+      <ErrorReference
+        v-if="shareStore.errorRef && shareStore.error !== 'offline'"
+        :request-id="shareStore.errorRef"
+        class="mt-1 font-normal"
+      />
+    </div>
 
     <div class="card flex items-center gap-2.5 py-2 pr-2 pl-4">
       <span class="min-w-0 flex-1 truncate text-[15px] font-semibold" data-testid="share-url">

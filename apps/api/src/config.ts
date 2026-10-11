@@ -31,6 +31,11 @@ const schema = z
     MONGODB_DATABASE: z.string().trim().min(1).default('bill-splitter'),
     /** Days a shared bill is kept after its last update. */
     BILL_TTL_DAYS: z.coerce.number().positive().default(7),
+    /** Minimum log level. Defaults to `info`, and to `silent` in tests. */
+    LOG_LEVEL: z.preprocess(
+      (value) => (typeof value === 'string' && !value.trim() ? undefined : value),
+      z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
+    ),
   })
   .transform((config, context) => {
     const receiptParser = config.RECEIPT_PARSER ?? (config.ANTHROPIC_API_KEY ? 'claude' : 'fake');

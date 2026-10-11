@@ -1,5 +1,6 @@
 import type { Bill } from '@bill-splitter/core';
 import { MongoClient, type Collection } from 'mongodb';
+import type { Logger } from '../observability/logger';
 import {
   hashToken,
   newBillId,
@@ -36,17 +37,17 @@ export async function createMongoBillStore(options: {
   uri: string;
   ttlMs: number;
   database: string;
+  logger: Logger;
 }): Promise<BillStore> {
   let client: MongoClient;
   try {
     client = await MongoClient.connect(options.uri);
   } catch (error) {
-    console.error(`Could not connect to MongoDB. ${describeMongoUri(options.uri)}`);
+    options.logger.error(`Could not connect to MongoDB. ${describeMongoUri(options.uri)}`);
     throw error;
   }
-  const bills: Collection<BillDocument> = client
-    .db(options.database)
-    .collection<BillDocument>('bills');
+  const db = client.db(options.database);
+  const bills: Collection<BillDocument> = db.collection<BillDocument>('bills');
   await bills.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
   const expiry = (from: Date) => new Date(from.getTime() + options.ttlMs);
@@ -88,6 +89,10 @@ export async function createMongoBillStore(options: {
         { returnDocument: 'after' },
       );
       return updated ? toRecord(updated) : 'not_found';
+    },
+
+    async ping() {
+      await db.command({ ping: 1 }, { timeoutMS: 2000 });
     },
 
     async close() {

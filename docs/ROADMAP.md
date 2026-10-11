@@ -56,6 +56,23 @@
   of truth, optimistic updates on the client
 - "Who are you?" picker, presence indicators
 
+## Phase 6: Observability
+
+- [x] Request ids from the web app to the API logs, shown next to errors
+- [x] Structured JSON logs (pino) with scan and sharing events, no personal data
+- [x] Health check that covers the database, for uptime monitoring
+- [ ] Sentry (EU region) for the web app and the API: releases per deploy,
+      source maps, session replay on error, alerts
+
+## Phase 7: Bug reports
+
+- [ ] "Report a problem" in every screen and on error states: description,
+      optional email, optional bill snapshot and receipt photo
+- [ ] Automatic context: version, route, device, recent API calls with their
+      request ids, last scan metadata, Sentry event id
+- [ ] `POST /api/feedback` stores reports in MongoDB (deleted after 90 days)
+      and opens a GitHub issue for each, grouping duplicates
+
 ## Later
 
 - Integrated payments (for example Stripe Checkout)
