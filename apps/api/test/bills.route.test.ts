@@ -81,6 +81,86 @@ describe('bills API', () => {
     expect(updated.body).toMatchObject({ version: 2, bill: { merchant: 'Casa Lola' } });
   });
 
+  describe('groups', () => {
+    const table = {
+      ...input,
+      diners: [
+        { id: 'ana', name: 'Ana', color: 'coral' },
+        { id: 'ben', name: 'Ben', color: 'teal' },
+        { id: 'cleo', name: 'Cleo', color: 'amber' },
+      ],
+    };
+
+    async function sharedTable() {
+      const app = createApp(config, testDependencies());
+      const created = await request(app).post('/api/bills').send({ bill: table });
+      return { app, id: created.body.id as string, token: created.body.ownerToken as string };
+    }
+
+    it('lets anyone with the link say who pays together', async () => {
+      const { app, id } = await sharedTable();
+
+      const response = await request(app)
+        .put(`/api/bills/${id}/groups`)
+        .send({ groups: [{ id: 'g1', dinerIds: ['ana', 'ben'] }] });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        version: 2,
+        bill: { groups: [{ id: 'g1', dinerIds: ['ana', 'ben'] }] },
+      });
+      const read = await request(app).get(`/api/bills/${id}`);
+      expect(read.body.bill.groups).toEqual([{ id: 'g1', dinerIds: ['ana', 'ben'] }]);
+    });
+
+    it("keeps guests' groups when the owner saves an older copy", async () => {
+      const { app, id, token } = await sharedTable();
+      await request(app)
+        .put(`/api/bills/${id}/groups`)
+        .send({ groups: [{ id: 'g1', dinerIds: ['ana', 'ben'] }] });
+
+      const saved = await request(app)
+        .put(`/api/bills/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bill: { ...table, merchant: 'Casa Lola', groups: [] } });
+
+      expect(saved.body.bill).toMatchObject({
+        merchant: 'Casa Lola',
+        groups: [{ id: 'g1', dinerIds: ['ana', 'ben'] }],
+      });
+    });
+
+    it('hides members the owner removed', async () => {
+      const { app, id, token } = await sharedTable();
+      await request(app)
+        .put(`/api/bills/${id}/groups`)
+        .send({ groups: [{ id: 'g1', dinerIds: ['ana', 'ben'] }] });
+
+      const saved = await request(app)
+        .put(`/api/bills/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bill: { ...table, diners: table.diners.filter((diner) => diner.id !== 'ben') } });
+
+      expect(saved.body.bill.groups).toEqual([]);
+    });
+
+    it('rejects a diner in two groups, and unknown bills', async () => {
+      const { app, id } = await sharedTable();
+      const twice = await request(app)
+        .put(`/api/bills/${id}/groups`)
+        .send({
+          groups: [
+            { id: 'g1', dinerIds: ['ana', 'ben'] },
+            { id: 'g2', dinerIds: ['ben', 'cleo'] },
+          ],
+        });
+      expect(twice.status).toBe(400);
+
+      const unknown = await request(app).put('/api/bills/Abc1234567/groups').send({ groups: [] });
+      expect(unknown.status).toBe(404);
+    });
+  });
+
   it('rejects invalid bills', async () => {
     const app = createApp(config, testDependencies());
     const cases = [

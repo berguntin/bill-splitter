@@ -62,6 +62,34 @@ function contract(name: string, makeStore: () => Promise<BillStore>) {
       expect((await bills.get(record.id))?.bill.merchant).toBe('Casa Lola');
     });
 
+    it('lets anyone set groups, which owner updates then keep', async () => {
+      const bills = await store();
+      const table: Bill = {
+        ...bill,
+        diners: [...bill.diners, { id: 'ben', name: 'Ben', color: 'teal' }],
+      };
+      const { record, ownerToken } = await bills.create(table);
+
+      const grouped = await bills.setGroups(record.id, [{ id: 'g', dinerIds: ['ana', 'ben'] }]);
+      expect(grouped).toMatchObject({ version: 2, bill: { groups: [{ id: 'g' }] } });
+      expect(await bills.setGroups('missing123', [])).toBeNull();
+
+      const updated = await bills.update(record.id, ownerToken, {
+        ...table,
+        merchant: 'Casa Lola',
+        groups: [],
+      });
+      expect(updated).toMatchObject({
+        version: 3,
+        bill: { merchant: 'Casa Lola', groups: [{ id: 'g', dinerIds: ['ana', 'ben'] }] },
+      });
+
+      // Ben leaves and the merchant is cleared: the group goes, and so does the field.
+      const removed = await bills.update(record.id, ownerToken, { ...table, diners: bill.diners });
+      expect(removed).toMatchObject({ bill: { groups: [] } });
+      expect((removed as { bill: Bill }).bill).not.toHaveProperty('merchant');
+    });
+
     it('never exposes the owner token or its hash', async () => {
       const bills = await store();
       const { record, ownerToken } = await bills.create(bill);

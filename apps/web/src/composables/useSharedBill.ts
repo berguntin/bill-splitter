@@ -1,6 +1,6 @@
-import type { Bill } from '@bill-splitter/core';
+import type { Bill, DinerGroup } from '@bill-splitter/core';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { fetchSharedBill, type ShareError } from '@/lib/api';
+import { fetchSharedBill, setSharedGroups, type Failure, type ShareError } from '@/lib/api';
 
 export const POLL_INTERVAL_MS = 5000;
 
@@ -63,5 +63,25 @@ export function useSharedBill(id: string) {
     document.removeEventListener('visibilitychange', onVisibilityChange);
   });
 
-  return { bill, updatedAt, state, error, errorRef, refresh };
+  /**
+   * Says who pays together. Shown at once, and rolled back if the server
+   * refuses; the next refresh brings in anyone else's changes.
+   */
+  async function setGroups(groups: DinerGroup[]): Promise<true | Failure<ShareError>> {
+    if (!bill.value) return true;
+    const previous = bill.value.groups;
+    bill.value = { ...bill.value, groups };
+    const result = await setSharedGroups(id, groups);
+    if (!result.ok) {
+      if (bill.value) bill.value = { ...bill.value, groups: previous ?? [] };
+      return result;
+    }
+    bill.value = result.value.bill;
+    updatedAt.value = new Date(result.value.updatedAt);
+    // The cached ETag is now stale; the next poll fetches the full bill.
+    etag = null;
+    return true;
+  }
+
+  return { bill, updatedAt, state, error, errorRef, refresh, setGroups };
 }

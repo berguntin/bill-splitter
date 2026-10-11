@@ -66,3 +66,66 @@ test('groups people who pay together, and every step can be undone', async ({ pa
   await expect(guest.getByTestId('my-group')).toContainText('€10.00');
   await guestContext.close();
 });
+
+test('guests can say who pays together, and the owner sees it', async ({ page, browser }) => {
+  await splitPizzaBetween(page, ['Ana', 'Ben', 'Cleo']);
+  await page.getByRole('link', { name: 'Share with the table' }).click();
+  await expect(page.getByRole('status')).toHaveText('Live');
+  const url = (await page.getByTestId('share-url').textContent())!.trim();
+  await page.getByRole('link', { name: 'Back' }).click();
+
+  const guestContext = await browser.newContext({ locale: 'en-US' });
+  const guest = await guestContext.newPage();
+  await guest.goto(url);
+  await guest.getByRole('button', { name: 'Ben' }).click();
+
+  // Ben covers Cleo.
+  await guest.getByRole('button', { name: 'Pay together' }).click();
+  const picker = guest.getByRole('list', { name: 'Pick who pays together' });
+  await picker.getByRole('button', { name: /Ben/ }).click();
+  await picker.getByRole('button', { name: /Cleo/ }).click();
+  await guest.getByRole('button', { name: 'Pay together (2)' }).click();
+  await expect(guest.getByTestId('my-group')).toContainText('Paying together with Cleo');
+  await expect(guest.getByTestId('my-group')).toContainText('€10.00');
+
+  // The owner's phone picks it up.
+  await expect(payerRows(page)).toHaveCount(2, { timeout: 15_000 });
+  await expect(payerRows(page).nth(1)).toContainText('Ben & Cleo');
+
+  // The guest changes their mind; the owner follows.
+  await guest.getByRole('button', { name: 'Undo' }).first().click();
+  await expect(guest.getByTestId('my-group')).toHaveCount(0);
+  await expect(payerRows(page)).toHaveCount(3, { timeout: 15_000 });
+
+  // A group the owner makes reaches the guest.
+  await page.getByRole('button', { name: 'Pay together' }).click();
+  await page.getByRole('button', { name: /Ana/ }).click();
+  await page.getByRole('button', { name: /Ben/ }).click();
+  await page.getByRole('button', { name: 'Pay together (2)' }).click();
+  await expect(guest.getByTestId('my-group')).toContainText('Paying together with Ana', {
+    timeout: 15_000,
+  });
+  await guestContext.close();
+});
+
+test('the owner keeps syncing after a reload, before opening the share screen', async ({
+  page,
+  browser,
+}) => {
+  await splitPizzaBetween(page, ['Ana', 'Ben']);
+  await page.getByRole('link', { name: 'Share with the table' }).click();
+  await expect(page.getByRole('status')).toHaveText('Live');
+  const url = (await page.getByTestId('share-url').textContent())!.trim();
+  await page.getByRole('link', { name: 'Back' }).click();
+  await page.reload();
+
+  const guestContext = await browser.newContext({ locale: 'en-US' });
+  const guest = await guestContext.newPage();
+  await guest.goto(url);
+  await guest.getByRole('button', { name: 'Ana' }).click();
+  await expect(guest.getByTestId('my-total')).toHaveText('€7.50');
+
+  await page.getByRole('button', { name: '10%' }).click();
+  await expect(guest.getByTestId('my-total')).toHaveText('€8.25', { timeout: 15_000 });
+  await guestContext.close();
+});

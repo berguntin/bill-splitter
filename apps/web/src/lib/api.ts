@@ -1,4 +1,4 @@
-import type { Bill, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
+import type { Bill, DinerGroup, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
 import {
   newRequestId,
   recordRequest,
@@ -221,6 +221,15 @@ export function updateSharedBill(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
     body: JSON.stringify({ bill }),
+  });
+}
+
+/** Says who pays together on a shared bill; anyone with the link may. */
+export function setSharedGroups(id: string, groups: DinerGroup[]): Promise<ApiResult<SharedBill>> {
+  return sendJson(`/api/bills/${encodeURIComponent(id)}/groups`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groups }),
   });
 }
 

@@ -47,6 +47,18 @@ const AdjustmentSchema = z.object({
   distribution: z.enum(['proportional', 'equal']).default('proportional'),
 });
 
+/** Who pays together; a diner may appear in one group only. */
+export const GroupsSchema = z
+  .array(z.object({ id, dinerIds: z.array(id).min(2).max(30) }))
+  .max(15)
+  .refine(
+    (groups) => {
+      const ids = groups.flatMap((group) => group.dinerIds);
+      return new Set(ids).size === ids.length;
+    },
+    { message: 'A diner can only be in one group' },
+  );
+
 /**
  * Bill sent by the web app or by another app (e.g. Camarero Digital). Only
  * names, amounts and assignments are required; ids, unit prices and empty
@@ -64,10 +76,7 @@ export const BillInputSchema = z.object({
   receiptTotal: cents.optional(),
   source: z.enum(['manual', 'scan', 'import']).optional(),
   merchant: z.string().trim().min(1).max(120).optional(),
-  groups: z
-    .array(z.object({ id, dinerIds: z.array(id).min(2).max(30) }))
-    .max(15)
-    .optional(),
+  groups: GroupsSchema.optional(),
 });
 
 export type BillInput = z.infer<typeof BillInputSchema>;

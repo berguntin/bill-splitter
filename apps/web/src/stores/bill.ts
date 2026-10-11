@@ -11,6 +11,7 @@ import {
   type Bill,
   type Cents,
   type Diner,
+  type DinerGroup,
   type DinerId,
   type Item,
   type ItemId,
@@ -224,6 +225,17 @@ export const useBillStore = defineStore('bill', () => {
     return id;
   }
 
+  /**
+   * Takes the groups others set on the shared copy. Not an undoable step:
+   * undoing someone else's change from here would be surprising.
+   */
+  function applySharedGroups(groups: DinerGroup[]): void {
+    bill.value.groups = pruneGroups(
+      groups,
+      bill.value.diners.map((diner) => diner.id),
+    );
+  }
+
   /** Each member of the group pays on their own again. */
   function ungroup(groupId: string): void {
     if (!bill.value.groups?.some((group) => group.id === groupId)) return;
@@ -303,6 +315,7 @@ export const useBillStore = defineStore('bill', () => {
     removeDiner,
     groupDiners,
     ungroup,
+    applySharedGroups,
     toggleDiner,
     toggleEveryone,
     assignRestToEveryone,

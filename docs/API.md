@@ -69,6 +69,16 @@ Replaces the bill. Header `Authorization: Bearer <ownerToken>`; same body as
 
 - `200` `{ id, bill, version, updatedAt, expiresAt }` · `400` · `401` · `403` · `404`
 
+### `PUT /api/bills/:id/groups`
+
+Says who pays together. Anyone with the link may call it: it changes nothing
+but the groups. Body `{ "groups": [{ "id": "g1", "dinerIds": ["ana", "ben"] }] }`
+(a diner in one group at most). Answers like `GET`, with the new version.
+`PUT /api/bills/:id` keeps the stored groups, so an owner's copy that is behind
+never undoes them; the owner's app sends its own group changes here too.
+
+- `200` · `400` `invalid_groups` · `404` · `429`
+
 ### `GET /api/bills/:id`
 
 Public, read-only. Responses carry an `ETag`; send it back in `If-None-Match`

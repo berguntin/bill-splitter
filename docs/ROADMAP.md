@@ -49,6 +49,8 @@
 - [x] Group diners who settle up as one (a couple, a friend covering another):
       the group's total is the sum of its members', each share stays visible
 - [x] Grouping and separating can be undone; groups reach shared bills
+- [x] Guests can group and separate from the shared view too; the owner's app
+      picks their changes up within seconds
 
 ## Phase 4: Polish and launch
 
