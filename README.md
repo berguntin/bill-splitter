@@ -66,6 +66,13 @@ Create two services from this repository, both with an empty Root Directory
 | web     | `SERVICE=web`, `VITE_API_URL=https://<api domain>`                                                                             |
 | api     | `SERVICE=api`, `NODE_ENV=production`, `ANTHROPIC_API_KEY`, `MONGODB_URI`, `CORS_ORIGINS=https://<web domain>`, `TRUST_PROXY=1` |
 
+Optional, for error monitoring with Sentry (see [Monitoring](#monitoring)):
+
+| Service | Variables                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------ |
+| web     | `VITE_SENTRY_DSN`, and to upload source maps `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` |
+| api     | `SENTRY_DSN`                                                                                     |
+
 Railway runs the root `build` and `start` scripts; `SERVICE` picks which app
 starts. Optionally point each service's Railway Config File to
 `/apps/web/railway.toml` or `/apps/api/railway.toml` for per-service builds,
@@ -82,6 +89,14 @@ redeploy the web service after changing it.
   viewer to follow one request. Set `LOG_LEVEL=debug` to also log bill updates.
 - **Request ids.** The web app sends an `X-Request-Id` with each call and shows
   it next to errors (`Ref. 7F3K-92QD`), so a report can be traced to its logs.
+- **Errors.** With a Sentry DSN set, unexpected errors in the web app and the
+  API are reported to Sentry (EU region), tagged with the release (the git
+  commit, from `RAILWAY_GIT_COMMIT_SHA`), the screen or route and the request
+  id. The web app keeps a masked session replay only for sessions with an
+  error. Request bodies, headers, cookies, local variables and AI inputs are
+  never sent. Source maps are uploaded at build time when `SENTRY_AUTH_TOKEN`
+  is set, and deleted from the build so they are not public. The SDK loads
+  after the first screen, so it does not slow the app down.
 - **Health.** `GET /api/health` returns 503 when MongoDB is unreachable. Point
   an uptime monitor (for example UptimeRobot or Better Stack, both free) at it
   to get an alert when the API goes down.

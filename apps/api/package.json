@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "build": "tsup",
-    "start": "node --env-file-if-exists=.env dist/index.js",
+    "start": "node --enable-source-maps --env-file-if-exists=.env dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "eval:receipts": "tsx --env-file-if-exists=.env scripts/eval-receipts.ts"
@@ -14,6 +14,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
     "@bill-splitter/core": "workspace:*",
+    "@sentry/node": "^11.6.0",
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.1",
