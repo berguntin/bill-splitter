@@ -10,6 +10,7 @@ import { REQUEST_ID_HEADER } from './observability/requestId';
 import { reportError } from './observability/sentry';
 import { createHealthRouter } from './routes/health';
 import { createReceiptsRouter } from './routes/receipts';
+import { createReportsRouter } from './routes/reports';
 
 /** Builds the Express app without binding a port, so tests can drive it directly. */
 export function createApp(config: Config, dependencies: Dependencies): express.Express {
@@ -30,6 +31,10 @@ export function createApp(config: Config, dependencies: Dependencies): express.E
     }),
   );
   app.use('/api/bills', createBillsRouter(dependencies.billStore));
+  app.use(
+    '/api/reports',
+    createReportsRouter(dependencies.reportStore, dependencies.reportNotifier),
+  );
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'not_found' });

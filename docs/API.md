@@ -73,3 +73,45 @@ Public, read-only. Responses carry an `ETag`; send it back in `If-None-Match`
 to get a bodiless `304` while nothing changed (the web app polls every 5 s).
 
 - `200` `{ id, bill, version, updatedAt, expiresAt }` · `304` · `404`
+
+## Bug reports
+
+### `POST /api/reports`
+
+Sent by the "Report a problem" screen. Body:
+
+```json
+{
+  "description": "The total is wrong after adding a tip",
+  "email": "optional@example.com",
+  "topic": "scan | split | share | other",
+  "context": {
+    "release": "<commit>",
+    "route": "/bill/summary",
+    "screen": "summary",
+    "userAgent": "...",
+    "language": "es-ES",
+    "timeZone": "Europe/Madrid",
+    "viewport": { "width": 390, "height": 844, "pixelRatio": 3 },
+    "online": true,
+    "errorRef": "7F3K92QD",
+    "sentryEventId": "...",
+    "recentRequests": [],
+    "recentErrors": [],
+    "navigation": [],
+    "lastScan": {}
+  },
+  "bill": {},
+  "attachments": [{ "kind": "receipt | screenshot", "mediaType": "image/jpeg", "data": "<base64>" }]
+}
+```
+
+`bill` is an anonymized copy (names replaced). At most two attachments of
+2 MB each. Answers `201 { "id": "<reference>" }`, `400 invalid_report`,
+`413 payload_too_large` or `429 rate_limited` (10 reports per hour per IP).
+Reports are kept for `REPORT_TTL_DAYS` (90) and, with `GITHUB_TOKEN`, open a
+GitHub issue, or add a comment to the open issue for the same failure.
+
+### `GET /api/reports/:id/attachments/:index?token=<token>`
+
+Serves an attached photo. The token is only in the links of the GitHub issue.

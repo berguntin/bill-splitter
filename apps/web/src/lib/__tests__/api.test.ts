@@ -20,7 +20,12 @@ describe('scanReceipt', () => {
     const receipt = { merchant: null, currency: 'EUR', lines: [], total: null };
     respond(200, { receipt, issues: [], model: 'claude-haiku-5-5' });
 
-    expect(await scanReceipt(image)).toEqual({ ok: true, receipt, issues: [] });
+    expect(await scanReceipt(image)).toEqual({
+      ok: true,
+      receipt,
+      issues: [],
+      requestId: expect.any(String),
+    });
     expect(fetch).toHaveBeenCalledWith(
       '/api/receipts/parse',
       expect.objectContaining({

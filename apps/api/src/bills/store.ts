@@ -23,7 +23,6 @@ export interface BillStore {
   update(id: string, ownerToken: string, bill: Bill): Promise<UpdateResult>;
   /** Resolves when the storage is reachable; rejects otherwise. */
   ping(): Promise<void>;
-  close(): Promise<void>;
 }
 
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -107,9 +106,5 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
     },
 
     async ping() {},
-
-    async close() {
-      entries.clear();
-    },
   };
 }

@@ -97,6 +97,15 @@ redeploy the web service after changing it.
   never sent. Source maps are uploaded at build time when `SENTRY_AUTH_TOKEN`
   is set, and deleted from the build so they are not public. The SDK loads
   after the first screen, so it does not slow the app down.
+- **Bug reports.** Every screen has a "Report a problem" button (the flag), and
+  error messages offer "Report this problem" with their reference. The report
+  carries the user's description, an optional email, and on request the
+  current bill (names replaced) and the receipt photo or a screenshot. The app
+  adds its version, device, screens visited, recent errors and API calls with
+  their request ids, the last scan and the Sentry event id. Reports are stored
+  in MongoDB for 90 days and, with `GITHUB_TOKEN`, open a GitHub issue labelled
+  `bug-report`; reports of the same failure are added to the open issue as
+  comments.
 - **Health.** `GET /api/health` returns 503 when MongoDB is unreachable. Point
   an uptime monitor (for example UptimeRobot or Better Stack, both free) at it
   to get an alert when the API goes down.

@@ -15,7 +15,9 @@ export type IconName =
   | 'scan'
   | 'split'
   | 'warning'
-  | 'qr';
+  | 'qr'
+  | 'flag'
+  | 'image';
 
 withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 20 });
 </script>
@@ -70,6 +72,15 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 20 });
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" />
+    </template>
+    <template v-else-if="name === 'flag'">
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4.5L17 13H5" />
+    </template>
+    <template v-else-if="name === 'image'">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10" r="1.75" />
+      <path d="M21 16l-5-5-9 9" />
     </template>
     <template v-else-if="name === 'warning'">
       <path d="M12 3l10 18H2z" />

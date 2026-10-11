@@ -44,3 +44,85 @@ export function recentRequests(): RequestRecord[] {
 export function clearRecentRequests(): void {
   records.length = 0;
 }
+
+export interface ErrorRecord {
+  at: string;
+  source: 'vue' | 'window' | 'promise';
+  message: string;
+  stack?: string;
+}
+
+export interface NavigationRecord {
+  at: string;
+  path: string;
+}
+
+export interface ScanRecord {
+  at: string;
+  ok: boolean;
+  error?: string;
+  requestId: string;
+  durationMs: number;
+  imageBytes?: number;
+  lines?: number;
+  issues?: string[];
+}
+
+const MAX_ERRORS = 20;
+const MAX_NAVIGATION = 20;
+const errors: ErrorRecord[] = [];
+const navigation: NavigationRecord[] = [];
+let lastScan: ScanRecord | null = null;
+let lastScanPhoto: Blob | null = null;
+
+function keepLast<T>(list: T[], item: T, max: number): void {
+  list.push(item);
+  if (list.length > max) list.splice(0, list.length - max);
+}
+
+export function recordError(source: ErrorRecord['source'], error: unknown): void {
+  const record: ErrorRecord = {
+    at: new Date().toISOString(),
+    source,
+    message: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+  };
+  if (error instanceof Error && error.stack) record.stack = error.stack.slice(0, 4000);
+  keepLast(errors, record, MAX_ERRORS);
+}
+
+export function recentErrors(): ErrorRecord[] {
+  return errors.map((record) => ({ ...record }));
+}
+
+export function recordNavigation(path: string): void {
+  keepLast(navigation, { at: new Date().toISOString(), path }, MAX_NAVIGATION);
+}
+
+export function recentNavigation(): NavigationRecord[] {
+  return navigation.map((record) => ({ ...record }));
+}
+
+/**
+ * The last scan and its photo, kept in memory only (never saved), so a user
+ * reporting a misread receipt can choose to attach the photo.
+ */
+export function recordScan(record: ScanRecord, photo: Blob): void {
+  lastScan = record;
+  lastScanPhoto = photo;
+}
+
+export function lastScanRecord(): ScanRecord | null {
+  return lastScan ? { ...lastScan } : null;
+}
+
+export function lastScanImage(): Blob | null {
+  return lastScanPhoto;
+}
+
+export function clearDiagnostics(): void {
+  records.length = 0;
+  errors.length = 0;
+  navigation.length = 0;
+  lastScan = null;
+  lastScanPhoto = null;
+}

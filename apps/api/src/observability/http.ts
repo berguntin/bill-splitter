@@ -27,7 +27,8 @@ export function httpLogger(logger: Logger) {
       req: (req: { id: string; method: string; url: string }) => ({
         id: req.id,
         method: req.method,
-        url: req.url,
+        // Attachment links carry their access token in the query string.
+        url: req.url.replace(/([?&]token=)[^&]*/, '$1[redacted]'),
       }),
       res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
     },

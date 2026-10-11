@@ -66,11 +66,11 @@
 
 ## Phase 7: Bug reports
 
-- [ ] "Report a problem" in every screen and on error states: description,
+- [x] "Report a problem" in every screen and on error states: description,
       optional email, optional bill snapshot and receipt photo
-- [ ] Automatic context: version, route, device, recent API calls with their
+- [x] Automatic context: version, route, device, recent API calls with their
       request ids, last scan metadata, Sentry event id
-- [ ] `POST /api/feedback` stores reports in MongoDB (deleted after 90 days)
+- [x] `POST /api/reports` stores reports in MongoDB (deleted after 90 days)
       and opens a GitHub issue for each, grouping duplicates
 
 ## Later

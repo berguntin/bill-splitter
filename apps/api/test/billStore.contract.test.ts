@@ -1,8 +1,9 @@
 import type { Bill } from '@bill-splitter/core';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createMongoBillStore } from '../src/bills/mongo';
-import { createLogger } from '../src/observability/logger';
 import { BILL_ID_PATTERN, createMemoryBillStore, type BillStore } from '../src/bills/store';
+import { connectMongo } from '../src/db/mongo';
+import { createLogger } from '../src/observability/logger';
 
 const bill: Bill = {
   id: 'local-id',
@@ -24,15 +25,7 @@ const bill: Bill = {
 /** The same behavior is required from every store implementation. */
 function contract(name: string, makeStore: () => Promise<BillStore>) {
   describe(`${name} bill store`, () => {
-    const stores: BillStore[] = [];
-    const store = async () => {
-      const created = await makeStore();
-      stores.push(created);
-      return created;
-    };
-    afterAll(async () => {
-      await Promise.all(stores.map((created) => created.close()));
-    });
+    const store = makeStore;
 
     it('answers a ping when it is reachable', async () => {
       await expect((await store()).ping()).resolves.toBeUndefined();
@@ -85,13 +78,18 @@ contract('memory', async () => createMemoryBillStore({ ttlMs: 60_000 }));
 // Runs against a real MongoDB when one is available (CI starts a service container).
 const mongoUri = process.env.TEST_MONGODB_URI;
 if (mongoUri) {
+  const connection = connectMongo({
+    uri: mongoUri,
+    database: `test_${Date.now()}`,
+    logger: createLogger({ NODE_ENV: 'test' }),
+  });
+  afterAll(async () => {
+    const { db, close } = await connection;
+    await db.dropDatabase();
+    await close();
+  });
   contract('mongodb', async () =>
-    createMongoBillStore({
-      uri: mongoUri,
-      ttlMs: 60_000,
-      database: `test_${Date.now()}`,
-      logger: createLogger({ NODE_ENV: 'test' }),
-    }),
+    createMongoBillStore({ db: (await connection).db, ttlMs: 60_000 }),
   );
 } else {
   describe.skip('mongodb bill store (set TEST_MONGODB_URI to run)', () => {
