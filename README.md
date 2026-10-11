@@ -2,8 +2,9 @@
 
 Scan a restaurant receipt, tap who had what, and see exactly what each person owes.
 
-> Status: early development. Receipts can be scanned or entered by hand and split
-> on the device; sharing via QR comes next. See the [roadmap](docs/ROADMAP.md).
+> Status: early development. Receipts can be scanned or entered by hand, split,
+> and shared with the table through a QR code. See the [roadmap](docs/ROADMAP.md)
+> and the [API reference](docs/API.md).
 
 ## Features (planned)
 
@@ -41,6 +42,8 @@ pnpm dev          # web on http://localhost:5173, API on http://localhost:3000
 Without configuration the API uses a fake receipt reader that always returns
 the same sample receipt, so the whole app works offline. To read real receipts,
 copy `apps/api/.env.example` to `apps/api/.env` and set `ANTHROPIC_API_KEY`.
+Shared bills are kept in memory unless `MONGODB_URI` points to a MongoDB
+database (required in production).
 
 | Command                                     | What it does                               |
 | ------------------------------------------- | ------------------------------------------ |

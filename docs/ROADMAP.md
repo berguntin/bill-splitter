@@ -34,11 +34,15 @@
 
 ## Phase 3: Share via QR (read-only)
 
-- `POST /api/bills`, `PUT /api/bills/:id` (owner token), `GET /api/bills/:id`
-- Public read-only view at `/b/:id`, refreshed by polling
-- Bills can be created from existing line items, so Camarero Digital can hand
-  over a table's order without scanning
-- Bills expire automatically (TTL)
+- [x] `POST /api/bills`, `PUT /api/bills/:id` (owner token), `GET /api/bills/:id`
+      with ETags for cheap polling
+- [x] MongoDB storage with a TTL index (in-memory store for development);
+      bills expire 7 days after their last change
+- [x] Share screen with a QR code and link; edits sync automatically
+- [x] Public read-only view at `/b/:id`, refreshed every 5 s, with a
+      "Who are you?" picker
+- [x] Bills can be created from existing line items, so Camarero Digital can
+      hand over a table's order without scanning (see `docs/API.md`)
 
 ## Phase 4: Polish and launch
 

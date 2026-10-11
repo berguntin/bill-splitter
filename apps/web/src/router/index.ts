@@ -21,6 +21,18 @@ export const router = createRouter({
       component: () => import('@/views/SummaryView.vue'),
       meta: { needsItemsAndDiners: true },
     },
+    {
+      path: '/bill/share',
+      name: 'share',
+      component: () => import('@/views/ShareView.vue'),
+      meta: { needsItemsAndDiners: true },
+    },
+    {
+      path: '/b/:id',
+      name: 'guest',
+      component: () => import('@/views/GuestView.vue'),
+      props: true,
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
   ],
   scrollBehavior: () => ({ top: 0 }),
