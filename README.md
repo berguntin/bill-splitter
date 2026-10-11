@@ -56,6 +56,23 @@ database (required in production).
 | `pnpm check`                                | Everything CI runs, except the build       |
 | `pnpm build`                                | Builds the web app and the API             |
 
+## Deploying on Railway
+
+Create two services from this repository, both with an empty Root Directory
+(the workspace needs the whole repo):
+
+| Service | Variables                                                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| web     | `SERVICE=web`, `VITE_API_URL=https://<api domain>`                                                                             |
+| api     | `SERVICE=api`, `NODE_ENV=production`, `ANTHROPIC_API_KEY`, `MONGODB_URI`, `CORS_ORIGINS=https://<web domain>`, `TRUST_PROXY=1` |
+
+Railway runs the root `build` and `start` scripts; `SERVICE` picks which app
+starts. Optionally point each service's Railway Config File to
+`/apps/web/railway.toml` or `/apps/api/railway.toml` for per-service builds,
+watch paths and health checks. Don't set custom build or start commands in the
+dashboard: they override both. `VITE_API_URL` is read at build time, so
+redeploy the web service after changing it.
+
 ## How receipts are read
 
 The web app downscales the photo to 1600 px and sends it to
