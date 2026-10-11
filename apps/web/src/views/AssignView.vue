@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { assignedDinerIds, type Item } from '@bill-splitter/core';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import StepHeader from '@/components/StepHeader.vue';
-import { initial, money } from '@/lib/format';
+import { initial, joinNames, money } from '@/lib/format';
 import { dinerSwatch } from '@/lib/palette';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
+const { t } = useI18n();
 const currency = computed(() => store.bill.currency);
 
 const totals = computed(
@@ -32,14 +34,14 @@ function selectedIds(item: Item): string[] {
 
 function status(item: Item): string {
   const ids = selectedIds(item);
-  if (ids.length === 0) return 'Tap who had it';
+  if (ids.length === 0) return t('assign.tapWho');
   const amount = money(shareAmounts.value.get(`${item.id}:${ids[0]}`) ?? 0, currency.value);
-  if (item.assignment.mode === 'everyone') return `Everyone · ${amount} each`;
+  if (item.assignment.mode === 'everyone') return t('assign.everyoneEach', { amount });
   const names = store.bill.diners
     .filter((diner) => ids.includes(diner.id))
     .map((diner) => diner.name);
-  if (names.length === 1) return `${names[0]} pays it all`;
-  return `${names.join(' & ')} · ${amount} each`;
+  if (names.length === 1) return t('assign.paysAll', { name: names[0] });
+  return t('assign.sharedEach', { names: joinNames(names), amount });
 }
 
 function chipStyle(color: string, selected: boolean): Record<string, string> {
@@ -55,12 +57,12 @@ function canSplit(item: Item): boolean {
 
 <template>
   <main class="flex min-h-dvh flex-col gap-4 pt-14">
-    <StepHeader title="Who had what?" step="Step 3 of 3" :back="{ name: 'diners' }">
+    <StepHeader :title="t('assign.title')" :step="t('assign.step')" :back="{ name: 'diners' }">
       <template #actions>
         <button
           type="button"
           class="icon-btn"
-          aria-label="Undo"
+          :aria-label="t('common.undo')"
           :disabled="!store.canUndo"
           @click="store.undo()"
         >
@@ -69,7 +71,7 @@ function canSplit(item: Item): boolean {
       </template>
     </StepHeader>
 
-    <ul class="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1" aria-label="Running totals">
+    <ul class="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1" :aria-label="t('assign.runningTotals')">
       <li
         v-for="diner in store.bill.diners"
         :key="diner.id"
@@ -85,7 +87,7 @@ function canSplit(item: Item): boolean {
       </li>
     </ul>
 
-    <ul class="flex flex-col gap-2.5" aria-label="Items">
+    <ul class="flex flex-col gap-2.5" :aria-label="t('assign.items')">
       <li
         v-for="item in store.bill.items"
         :key="item.id"
@@ -107,7 +109,7 @@ function canSplit(item: Item): boolean {
         <div
           class="flex flex-wrap items-center gap-2"
           role="group"
-          :aria-label="`Who had ${item.name}`"
+          :aria-label="t('assign.whoHad', { name: item.name })"
         >
           <button
             v-for="diner in store.bill.diners"
@@ -133,7 +135,7 @@ function canSplit(item: Item): boolean {
             :aria-pressed="item.assignment.mode === 'everyone'"
             @click="store.toggleEveryone(item.id)"
           >
-            All
+            {{ t('assign.all') }}
           </button>
         </div>
 
@@ -151,7 +153,7 @@ function canSplit(item: Item): boolean {
             @click="store.splitItem(item.id)"
           >
             <AppIcon name="split" :size="16" />
-            Split into {{ item.quantity }}
+            {{ t('assign.splitInto', { n: item.quantity }) }}
           </button>
         </div>
       </li>
@@ -160,17 +162,19 @@ function canSplit(item: Item): boolean {
     <div class="bg-surface sticky bottom-0 mt-auto flex flex-col gap-2 pt-3 pb-8">
       <template v-if="pendingCount">
         <button type="button" class="btn-primary" disabled>
-          {{ pendingCount }} {{ pendingCount === 1 ? 'item' : 'items' }} left to assign
+          {{ t('assign.left', { n: pendingCount }, pendingCount) }}
         </button>
         <button
           type="button"
           class="text-accent-text h-11 text-sm font-bold"
           @click="store.assignRestToEveryone()"
         >
-          Split the rest among everyone
+          {{ t('assign.restToEveryone') }}
         </button>
       </template>
-      <RouterLink v-else :to="{ name: 'summary' }" class="btn-primary">See the split</RouterLink>
+      <RouterLink v-else :to="{ name: 'summary' }" class="btn-primary">{{
+        t('assign.seeSplit')
+      }}</RouterLink>
     </div>
   </main>
 </template>

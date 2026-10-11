@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
@@ -11,6 +12,7 @@ import { useBillStore } from '@/stores/bill';
 const store = useBillStore();
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 
 const state = ref<'idle' | 'reading' | 'error'>('idle');
 const error = ref<ScanError | null>(null);
@@ -21,38 +23,14 @@ const cameraInput = ref<HTMLInputElement | null>(null);
 const galleryInput = ref<HTMLInputElement | null>(null);
 let controller: AbortController | null = null;
 
-const ERROR_MESSAGES: Record<ScanError, { title: string; hint: string }> = {
-  not_a_receipt: {
-    title: "That doesn't look like a receipt",
-    hint: 'Try again with the whole receipt in the photo.',
-  },
-  unreadable: {
-    title: "We couldn't read this receipt",
-    hint: 'Try a sharper photo in better light, or enter the items yourself.',
-  },
-  unsupported_image: {
-    title: "This image format isn't supported",
-    hint: 'Use a JPEG, PNG or WebP photo.',
-  },
-  too_large: { title: 'This photo is too large', hint: 'Try a smaller photo.' },
-  rate_limited: {
-    title: 'Too many scans in a short time',
-    hint: 'Wait a few minutes, or enter the items yourself.',
-  },
-  offline: {
-    title: "We couldn't reach the server",
-    hint: 'Check your connection and try again.',
-  },
-  timeout: {
-    title: 'Reading the receipt took too long',
-    hint: 'Try again, or enter the items yourself.',
-  },
-  server: { title: 'Something went wrong on our side', hint: 'Please try again in a moment.' },
-};
-
 const REPORTABLE = new Set<ScanError>(['unreadable', 'timeout', 'server']);
 
-const message = computed(() => (error.value ? ERROR_MESSAGES[error.value] : null));
+/** Title and hint for the current error, from `scan.errors.<code>`. */
+const message = computed(() =>
+  error.value
+    ? { title: t(`scan.errors.${error.value}.title`), hint: t(`scan.errors.${error.value}.hint`) }
+    : null,
+);
 
 async function onFileChosen(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
@@ -112,16 +90,16 @@ onBeforeUnmount(() => {
       <RouterLink
         :to="{ name: 'home' }"
         class="bg-camera-ink/10 flex size-11 items-center justify-center rounded-full"
-        aria-label="Close"
+        :aria-label="t('scan.close')"
       >
         <AppIcon name="close" />
       </RouterLink>
-      <h1 class="text-[15px] font-semibold">Scan receipt</h1>
+      <h1 class="text-[15px] font-semibold">{{ t('scan.title') }}</h1>
       <RouterLink
         :to="reportLocation(route.fullPath, { topic: 'scan' })"
         class="text-camera-muted flex size-11 items-center justify-center rounded-full"
-        aria-label="Report a problem"
-        title="Report a problem"
+        :aria-label="t('common.reportProblem')"
+        :title="t('common.reportProblem')"
       >
         <AppIcon name="flag" :size="18" />
       </RouterLink>
@@ -133,15 +111,14 @@ onBeforeUnmount(() => {
       <img
         v-if="previewUrl"
         :src="previewUrl"
-        alt="Your receipt photo"
+        :alt="t('scan.photoAlt')"
         class="absolute inset-0 size-full object-contain"
         :class="{ 'opacity-60': state === 'reading' }"
       />
       <div v-else class="flex max-w-60 flex-col items-center gap-4 text-center">
         <AppIcon name="scan" :size="56" class="text-camera-muted" />
         <p class="text-camera-muted text-sm leading-relaxed">
-          Lay the receipt flat in good light. Make sure the whole receipt, including the total, is
-          in the photo.
+          {{ t('scan.tips') }}
         </p>
       </div>
 
@@ -164,7 +141,7 @@ onBeforeUnmount(() => {
         class="bg-camera/80 absolute bottom-20 flex items-center gap-2.5 rounded-full px-4 py-2 text-sm font-semibold"
       >
         <span class="bg-success size-2.5 animate-pulse rounded-full" />
-        Reading your receipt…
+        {{ t('scan.reading') }}
       </div>
     </div>
 
@@ -184,38 +161,34 @@ onBeforeUnmount(() => {
           class="bg-camera-ink text-camera h-11 flex-1 rounded-xl text-sm font-bold"
           @click="retry"
         >
-          Try again
+          {{ t('scan.tryAgain') }}
         </button>
         <button
           type="button"
           class="bg-camera-ink/10 h-11 flex-1 rounded-xl text-sm font-semibold"
           @click="enterManually"
         >
-          Enter manually
+          {{ t('scan.enterManually') }}
         </button>
       </div>
       <RouterLink
         :to="reportLocation(route.fullPath, { ref: errorRef, topic: 'scan' })"
         class="text-camera-muted self-center text-sm font-semibold underline underline-offset-2"
       >
-        Report this problem
+        {{ t('common.reportThisProblem') }}
       </RouterLink>
     </section>
 
     <template v-else>
       <p class="text-camera-muted text-center text-sm">
-        {{
-          state === 'reading'
-            ? 'This takes a few seconds.'
-            : 'Photos are only used to read the items and are never stored.'
-        }}
+        {{ state === 'reading' ? t('scan.takesSeconds') : t('scan.privacy') }}
       </p>
 
       <div class="flex items-center justify-between px-3">
         <button
           type="button"
           class="bg-camera-ink/10 flex size-13 items-center justify-center rounded-2xl disabled:opacity-40"
-          aria-label="Choose a photo from the gallery"
+          :aria-label="t('scan.gallery')"
           :disabled="state === 'reading'"
           @click="galleryInput?.click()"
         >
@@ -238,7 +211,7 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="border-camera-ink flex size-20 items-center justify-center rounded-full border-4 transition active:scale-95 disabled:opacity-40"
-          aria-label="Take photo"
+          :aria-label="t('scan.takePhoto')"
           :disabled="state === 'reading'"
           @click="cameraInput?.click()"
         >
@@ -250,7 +223,7 @@ onBeforeUnmount(() => {
           :disabled="state === 'reading'"
           @click="enterManually"
         >
-          Type
+          {{ t('scan.type') }}
         </button>
       </div>
     </template>

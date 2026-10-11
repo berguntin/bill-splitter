@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import StepHeader from '@/components/StepHeader.vue';
 import { useBillStore } from '@/stores/bill';
 
 const store = useBillStore();
+const { t } = useI18n();
 const name = ref('');
 
 const suggestions = computed(() => {
@@ -22,16 +24,16 @@ function add(): void {
 
 <template>
   <main class="flex min-h-dvh flex-col gap-6 pt-14">
-    <StepHeader title="Who's at the table?" step="Step 2 of 3" :back="{ name: 'items' }" />
+    <StepHeader :title="t('diners.title')" :step="t('diners.step')" :back="{ name: 'items' }" />
 
     <form class="flex gap-2" @submit.prevent="add">
       <label class="flex-1">
-        <span class="sr-only">Name</span>
+        <span class="sr-only">{{ t('diners.name') }}</span>
         <input
           v-model="name"
           class="field h-13.5"
           type="text"
-          placeholder="Add a name"
+          :placeholder="t('diners.placeholder')"
           autocomplete="off"
           enterkeyhint="done"
         />
@@ -39,13 +41,13 @@ function add(): void {
       <button
         type="submit"
         class="bg-inverse text-inverse-ink flex size-13.5 shrink-0 items-center justify-center rounded-2xl"
-        aria-label="Add person"
+        :aria-label="t('diners.add')"
       >
         <AppIcon name="plus" :size="22" />
       </button>
     </form>
 
-    <ul v-if="count" class="flex flex-col gap-2.5" aria-label="People">
+    <ul v-if="count" class="flex flex-col gap-2.5" :aria-label="t('diners.list')">
       <li
         v-for="diner in store.bill.diners"
         :key="diner.id"
@@ -56,7 +58,7 @@ function add(): void {
         <button
           type="button"
           class="text-ink-muted flex size-11 items-center justify-center rounded-xl"
-          :aria-label="`Remove ${diner.name}`"
+          :aria-label="t('diners.remove', { name: diner.name })"
           @click="store.removeDiner(diner.id)"
         >
           <AppIcon name="close" :size="18" />
@@ -65,7 +67,7 @@ function add(): void {
     </ul>
 
     <section v-if="suggestions.length" class="flex flex-col gap-2.5" aria-labelledby="recent">
-      <h2 id="recent" class="section-label">Recent</h2>
+      <h2 id="recent" class="section-label">{{ t('diners.recent') }}</h2>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="suggestion in suggestions"
@@ -81,9 +83,9 @@ function add(): void {
 
     <div class="bg-surface sticky bottom-0 mt-auto pt-3 pb-8">
       <RouterLink v-if="count" :to="{ name: 'assign' }" class="btn-primary">
-        Continue with {{ count }} {{ count === 1 ? 'person' : 'people' }}
+        {{ t('diners.continue', { n: count }, count) }}
       </RouterLink>
-      <button v-else type="button" class="btn-primary" disabled>Add at least one person</button>
+      <button v-else type="button" class="btn-primary" disabled>{{ t('diners.addOne') }}</button>
     </div>
   </main>
 </template>

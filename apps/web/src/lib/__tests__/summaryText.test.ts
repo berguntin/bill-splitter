@@ -1,5 +1,6 @@
 import { computeBreakdown, type Bill } from '@bill-splitter/core';
 import { describe, expect, it } from 'vitest';
+import { setLocale } from '../i18n';
 import { summaryText } from '../summaryText';
 
 const base: Bill = {
@@ -62,5 +63,15 @@ describe('summaryText', () => {
     expect(summaryText(bill, computeBreakdown(bill))).toBe(
       'Bill split · €12.00\n\nAna & Cleo: €8.00 (Ana €4.00 + Cleo €4.00)\nBen: €4.00',
     );
+  });
+
+  it('speaks Spanish too', () => {
+    setLocale('es');
+    try {
+      expect(summaryText(base, computeBreakdown(base))).toContain('Reparto de la cuenta');
+    } finally {
+      setLocale('en');
+      window.localStorage.clear();
+    }
   });
 });

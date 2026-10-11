@@ -14,7 +14,10 @@ Scan a restaurant receipt, tap who had what, and see exactly what each person ow
 - **Tips and discounts**: split proportionally to consumption or evenly.
 - **Cent-perfect totals**: every split adds up to the receipt total, always.
 - **Share via QR**: everyone at the table can follow the split from their phone.
-- **Live collaboration** (later): several people assigning items at the same time.
+- **Pay together**: group a couple or friends so they settle up as one.
+- **Live updates**: shared bills update on every phone within a second.
+- **English and Spanish**: picked from the browser's languages, switchable on
+  the home screen.
 
 ## Repository layout
 

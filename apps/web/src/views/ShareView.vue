@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
@@ -14,34 +15,24 @@ const billStore = useBillStore();
 const shareStore = useShareStore();
 const copied = ref(false);
 const route = useRoute();
+const { t } = useI18n();
 
 onMounted(() => {
   void shareStore.share();
 });
 
-const statusLabel = computed(() => {
-  switch (shareStore.status) {
-    case 'saving':
-      return 'Updating…';
-    case 'saved':
-      return 'Live';
-    case 'error':
-      return 'Not updated';
-    default:
-      return 'Preparing…';
-  }
-});
+const statusLabel = computed(() => t(`share.status.${shareStore.status}`));
 
 const errorMessage = computed(() => {
   switch (shareStore.error) {
     case 'offline':
-      return "You're offline. Guests will see your changes once you reconnect.";
+      return t('share.errors.offline');
     case 'rate_limited':
-      return 'Too many updates in a short time. Try again in a few minutes.';
+      return t('share.errors.rate_limited');
     case null:
       return null;
     default:
-      return "We couldn't publish the latest changes. Try again.";
+      return t('share.errors.other');
   }
 });
 
@@ -58,10 +49,11 @@ async function copyLink(): Promise<void> {
 
 async function sendInChat(): Promise<void> {
   if (!shareStore.url) return;
-  const text = `${summaryText(billStore.bill, billStore.breakdown)}\n\nSee the details: ${shareStore.url}`;
+  const details = t('share.seeDetails', { url: shareStore.url });
+  const text = `${summaryText(billStore.bill, billStore.breakdown)}\n\n${details}`;
   if (typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title: 'Bill split', text, url: shareStore.url });
+      await navigator.share({ title: t('share.shareTitle'), text, url: shareStore.url });
     } catch {
       // The person closed the share sheet.
     }
@@ -73,7 +65,7 @@ async function sendInChat(): Promise<void> {
 
 <template>
   <main class="flex min-h-dvh flex-col gap-6 pt-14">
-    <StepHeader title="Share with the table" :back="{ name: 'summary' }">
+    <StepHeader :title="t('share.title')" :back="{ name: 'summary' }">
       <template #actions>
         <span
           role="status"
@@ -99,11 +91,11 @@ async function sendInChat(): Promise<void> {
     </StepHeader>
 
     <p class="text-ink-muted -mt-2 text-[15px] leading-relaxed">
-      Everyone scans the code and sees what they owe. Your changes show up on their phones.
+      {{ t('share.intro') }}
     </p>
 
     <div class="card shadow-ink/5 mx-auto w-full max-w-[280px] rounded-[28px] p-5 shadow-xl">
-      <QrCode v-if="shareStore.url" :value="shareStore.url" label="QR code linking to this bill" />
+      <QrCode v-if="shareStore.url" :value="shareStore.url" :label="t('share.qrLabel')" />
       <div v-else class="bg-surface-sunken aspect-square w-full animate-pulse rounded-xl" />
     </div>
 
@@ -113,7 +105,9 @@ async function sendInChat(): Promise<void> {
       class="bg-warning-soft text-warning-ink rounded-2xl px-4 py-3 text-sm font-semibold"
     >
       {{ errorMessage }}
-      <button type="button" class="ml-1 underline" @click="shareStore.share()">Retry</button>
+      <button type="button" class="ml-1 underline" @click="shareStore.share()">
+        {{ t('share.retry') }}
+      </button>
       <div
         v-if="shareStore.errorRef && shareStore.error !== 'offline'"
         class="mt-1 flex items-center justify-between gap-3 font-normal"
@@ -123,14 +117,14 @@ async function sendInChat(): Promise<void> {
           :to="reportLocation(route.fullPath, { ref: shareStore.errorRef, topic: 'share' })"
           class="text-xs font-semibold underline underline-offset-2"
         >
-          Report this problem
+          {{ t('common.reportThisProblem') }}
         </RouterLink>
       </div>
     </div>
 
     <div class="card flex items-center gap-2.5 py-2 pr-2 pl-4">
       <span class="min-w-0 flex-1 truncate text-[15px] font-semibold" data-testid="share-url">
-        {{ shareStore.url ?? 'Creating link…' }}
+        {{ shareStore.url ?? t('share.creatingLink') }}
       </span>
       <button
         type="button"
@@ -138,7 +132,7 @@ async function sendInChat(): Promise<void> {
         :disabled="!shareStore.url"
         @click="copyLink"
       >
-        {{ copied ? 'Copied' : 'Copy link' }}
+        {{ copied ? t('share.copied') : t('share.copyLink') }}
       </button>
     </div>
 
@@ -157,13 +151,13 @@ async function sendInChat(): Promise<void> {
         <rect x="4" y="11" width="16" height="10" rx="2" />
         <path d="M8 11V7a4 4 0 0 1 8 0v4" />
       </svg>
-      Guests can view. Only you can edit.
+      {{ t('share.guestsCanView') }}
     </p>
 
     <div class="bg-surface sticky bottom-0 mt-auto pt-3 pb-8">
       <button type="button" class="btn-primary" :disabled="!shareStore.url" @click="sendInChat">
         <AppIcon name="share" />
-        Send in a chat
+        {{ t('share.sendInChat') }}
       </button>
     </div>
   </main>
