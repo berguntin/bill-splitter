@@ -118,6 +118,24 @@ describe('useShareStore', () => {
     expect(share.isShared).toBe(true);
   });
 
+  it('keeps the link of the previous bill, and takes over a single link saved before', async () => {
+    mockApi(() => ({ status: 201, body: created }));
+    const bill = setUpBill();
+    const firstBill = bill.bill.id;
+    const share = useShareStore();
+    await share.share();
+    bill.reset();
+    expect(share.isBillShared(firstBill)).toBe(true);
+
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'bill-splitter/share/v1',
+      JSON.stringify({ localBillId: 'old', remoteId: 'Old1234567', ownerToken: 't' }),
+    );
+    setActivePinia(createPinia());
+    expect(useShareStore().isBillShared('old')).toBe(true);
+  });
+
   it('forgets the link when a new bill is started', async () => {
     mockApi(() => ({ status: 201, body: created }));
     const bill = setUpBill();

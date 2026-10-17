@@ -14,7 +14,11 @@ import { followSharedBill } from '@/lib/followSharedBill';
 import { loadJson, saveJson } from '@/lib/storage';
 import { useBillStore } from './bill';
 
-export const SHARE_STORAGE_KEY = 'bill-splitter/share/v1';
+export const SHARE_STORAGE_KEY = 'bill-splitter/share/v2';
+/** Before recent bills, only the current bill's link was kept. */
+const LEGACY_SHARE_STORAGE_KEY = 'bill-splitter/share/v1';
+/** Links kept, one per recent bill. */
+const MAX_LINKS = 30;
 
 /** Wait this long after the last edit before pushing, so a burst of taps is one request. */
 export const SYNC_DELAY_MS = 800;
@@ -38,6 +42,17 @@ function isShareLink(value: unknown): value is ShareLink {
     typeof link.remoteId === 'string' &&
     typeof link.ownerToken === 'string'
   );
+}
+
+function isShareLinkList(value: unknown): value is ShareLink[] {
+  return Array.isArray(value) && value.every(isShareLink);
+}
+
+function loadLinks(): ShareLink[] {
+  const links = loadJson(SHARE_STORAGE_KEY, isShareLinkList);
+  if (links) return links;
+  const legacy = loadJson(LEGACY_SHARE_STORAGE_KEY, isShareLink);
+  return legacy ? [legacy] : [];
 }
 
 /** Order-insensitive fingerprint of a set of groups. */
@@ -65,16 +80,17 @@ function ownerKey({ groups: _groups, payments: _payments, ...rest }: Bill): stri
 export const useShareStore = defineStore('share', () => {
   const billStore = useBillStore();
 
-  const link = ref<ShareLink | null>(loadJson(SHARE_STORAGE_KEY, isShareLink));
+  /** One link per published bill, so a recent bill reopened keeps its QR code. */
+  const links = ref<ShareLink[]>(loadLinks());
   const status = ref<SyncStatus>('idle');
   const error = ref<ShareError | null>(null);
   /** Request id of the last failure, to quote when reporting it. */
   const errorRef = ref<string | null>(null);
 
-  watch(link, (value) => saveJson(SHARE_STORAGE_KEY, value), { deep: true });
+  watch(links, (value) => saveJson(SHARE_STORAGE_KEY, value), { deep: true });
 
-  const activeLink = computed(() =>
-    link.value?.localBillId === billStore.bill.id ? link.value : null,
+  const activeLink = computed(
+    () => links.value.find((candidate) => candidate.localBillId === billStore.bill.id) ?? null,
   );
   const isShared = computed(() => activeLink.value !== null);
   const url = computed(() =>
@@ -147,12 +163,15 @@ export const useShareStore = defineStore('share', () => {
     const created = await createSharedBill(bill);
     if (!created.ok) return failed(created);
     pushedOwnerKey = key;
-    link.value = {
-      localBillId: bill.id,
-      remoteId: created.value.id,
-      ownerToken: created.value.ownerToken,
-      syncedGroups: created.value.bill.groups ?? [],
-    };
+    links.value = [
+      {
+        localBillId: bill.id,
+        remoteId: created.value.id,
+        ownerToken: created.value.ownerToken,
+        syncedGroups: created.value.bill.groups ?? [],
+      },
+      ...links.value.filter((candidate) => candidate.localBillId !== bill.id),
+    ].slice(0, MAX_LINKS);
     saved();
   }
 
@@ -236,7 +255,7 @@ export const useShareStore = defineStore('share', () => {
 
   function stopSharing(): void {
     clearTimeout(timer);
-    link.value = null;
+    forget(billStore.bill.id);
     status.value = 'idle';
     error.value = null;
     errorRef.value = null;
@@ -255,5 +274,26 @@ export const useShareStore = defineStore('share', () => {
     return true;
   }
 
-  return { isShared, url, status, error, errorRef, share, setPaid, stopSharing };
+  /** Drops the link of a bill that is gone from this device. */
+  function forget(localBillId: string): void {
+    links.value = links.value.filter((candidate) => candidate.localBillId !== localBillId);
+  }
+
+  /** Whether a bill (current or recent) has a link guests can open. */
+  function isBillShared(localBillId: string): boolean {
+    return links.value.some((candidate) => candidate.localBillId === localBillId);
+  }
+
+  return {
+    isShared,
+    url,
+    status,
+    error,
+    errorRef,
+    share,
+    setPaid,
+    stopSharing,
+    forget,
+    isBillShared,
+  };
 });
