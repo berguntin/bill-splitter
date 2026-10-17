@@ -90,6 +90,20 @@ function contract(name: string, makeStore: () => Promise<BillStore>) {
       expect((removed as { bill: Bill }).bill).not.toHaveProperty('merchant');
     });
 
+    it('sets payments only at the expected version, and keeps them on owner updates', async () => {
+      const bills = await store();
+      const { record, ownerToken } = await bills.create(bill);
+      const payment = { dinerId: 'ana', amount: 1200, paidAt: '2026-10-17T12:00:00.000Z' };
+
+      expect(await bills.setPayments(record.id, record.version + 5, [payment])).toBe('conflict');
+      expect(await bills.setPayments('missing123', 1, [payment])).toBeNull();
+      const paid = await bills.setPayments(record.id, record.version, [payment]);
+      expect(paid).toMatchObject({ version: 2, bill: { payments: [payment] } });
+
+      const updated = await bills.update(record.id, ownerToken, { ...bill, payments: [] });
+      expect(updated).toMatchObject({ version: 3, bill: { payments: [payment] } });
+    });
+
     it('never exposes the owner token or its hash', async () => {
       const bills = await store();
       const { record, ownerToken } = await bills.create(bill);

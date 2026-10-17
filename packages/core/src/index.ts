@@ -19,6 +19,8 @@ export {
 } from './assignments';
 export { anonymizeBill } from './anonymize';
 export { groupDiners, payers, pruneGroups, ungroup } from './groups';
+export { markPaid, markUnpaid, paymentStatus } from './payments';
+export type { PaymentStatus } from './payments';
 export type { Payer } from './groups';
 export { splitIntoUnits } from './items';
 export { receiptIssues, receiptIssueScore } from './receipt';

@@ -6,8 +6,8 @@ import {
   newOwnerToken,
   tokenMatches,
   type BillStore,
-  withLiveGroups,
-  withoutGroups,
+  withLiveSharedFields,
+  withoutSharedFields,
   type StoredBill,
 } from './store';
 
@@ -26,7 +26,7 @@ const OPTIONAL_FIELDS = ['receiptTotal', 'source', 'merchant'] as const;
 function toRecord(document: BillDocument): StoredBill {
   return {
     id: document._id,
-    bill: withLiveGroups(document.bill),
+    bill: withLiveSharedFields(document.bill),
     version: document.version,
     updatedAt: document.updatedAt,
     expiresAt: document.expiresAt,
@@ -72,8 +72,8 @@ export async function createMongoBillStore(options: { db: Db; ttlMs: number }): 
       if (!current) return 'not_found';
       if (!tokenMatches(ownerToken, current.ownerTokenHash)) return 'forbidden';
 
-      // Field by field, so groups set by guests in the meantime are kept.
-      const fields = withoutGroups({ ...bill, id });
+      // Field by field, so groups and payments set by guests in the meantime are kept.
+      const fields = withoutSharedFields({ ...bill, id });
       const unset = OPTIONAL_FIELDS.filter((field) => !(field in fields));
       const updated = await bills.findOneAndUpdate(
         { _id: id, ownerTokenHash: current.ownerTokenHash },
@@ -106,6 +106,21 @@ export async function createMongoBillStore(options: { db: Db; ttlMs: number }): 
         { returnDocument: 'after' },
       );
       return updated ? toRecord(updated) : null;
+    },
+
+    async setPayments(id, expectedVersion, payments) {
+      const now = new Date();
+      const updated = await bills.findOneAndUpdate(
+        { _id: id, version: expectedVersion, expiresAt: { $gt: now } },
+        {
+          $set: { 'bill.payments': payments, updatedAt: now, expiresAt: expiry(now) },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after' },
+      );
+      if (updated) return toRecord(updated);
+      // Either someone changed the bill in the meantime, or it is gone.
+      return (await bills.countDocuments({ _id: id, expiresAt: { $gt: now } })) ? 'conflict' : null;
     },
 
     async ping() {

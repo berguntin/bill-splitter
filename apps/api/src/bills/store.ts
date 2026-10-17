@@ -1,4 +1,4 @@
-import { pruneGroups, type Bill, type DinerGroup } from '@bill-splitter/core';
+import { pruneGroups, type Bill, type DinerGroup, type Payment } from '@bill-splitter/core';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 export interface StoredBill {
@@ -27,6 +27,15 @@ export interface BillStore {
   update(id: string, ownerToken: string, bill: Bill): Promise<UpdateResult>;
   /** Sets who pays together. Anyone with the link may, so it touches nothing else. */
   setGroups(id: string, groups: DinerGroup[]): Promise<StoredBill | null>;
+  /**
+   * Sets who has paid, only if the bill is still at `expectedVersion` (the
+   * amounts were computed from it). Anyone with the link may.
+   */
+  setPayments(
+    id: string,
+    expectedVersion: number,
+    payments: Payment[],
+  ): Promise<StoredBill | 'conflict' | null>;
   /** Resolves when the storage is reachable; rejects otherwise. */
   ping(): Promise<void>;
 }
@@ -39,23 +48,29 @@ export function newBillId(): string {
   return Array.from({ length: 10 }, () => ID_ALPHABET[randomInt(ID_ALPHABET.length)]).join('');
 }
 
-/** The bill without its groups, which owner updates must not overwrite. */
-export function withoutGroups(bill: Bill): Omit<Bill, 'groups'> {
+/** Fields everyone at the table may change, which owner updates must not overwrite. */
+export const SHARED_FIELDS = ['groups', 'payments'] as const;
+
+/** The bill without the fields everyone at the table may change. */
+export function withoutSharedFields(bill: Bill): Omit<Bill, (typeof SHARED_FIELDS)[number]> {
   const copy: Bill = { ...bill };
-  delete copy.groups;
+  for (const field of SHARED_FIELDS) delete copy[field];
   return copy;
 }
 
-/** Groups as stored may name diners the owner removed since; readers never see those. */
-export function withLiveGroups(bill: Bill): Bill {
-  if (!bill.groups) return bill;
-  return {
-    ...bill,
-    groups: pruneGroups(
-      bill.groups,
-      bill.diners.map((diner) => diner.id),
-    ),
-  };
+/**
+ * Groups and payments as stored may name diners the owner removed since;
+ * readers never see those.
+ */
+export function withLiveSharedFields(bill: Bill): Bill {
+  const dinerIds = bill.diners.map((diner) => diner.id);
+  const live: Bill = { ...bill };
+  if (bill.groups) live.groups = pruneGroups(bill.groups, dinerIds);
+  if (bill.payments) {
+    const known = new Set(dinerIds);
+    live.payments = bill.payments.filter((payment) => known.has(payment.dinerId));
+  }
+  return live;
 }
 
 export function newOwnerToken(): string {
@@ -93,7 +108,7 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
   }
 
   function publicView({ ownerTokenHash: _hash, ...record }: MemoryEntry): StoredBill {
-    return structuredClone({ ...record, bill: withLiveGroups(record.bill) });
+    return structuredClone({ ...record, bill: withLiveSharedFields(record.bill) });
   }
 
   function touch(entry: MemoryEntry): void {
@@ -129,8 +144,11 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
       const entry = live(id);
       if (!entry) return 'not_found';
       if (!tokenMatches(ownerToken, entry.ownerTokenHash)) return 'forbidden';
-      const rest = withoutGroups(structuredClone(bill));
-      entry.bill = entry.bill.groups ? { ...rest, id, groups: entry.bill.groups } : { ...rest, id };
+      const next: Bill = { ...withoutSharedFields(structuredClone(bill)), id };
+      for (const field of SHARED_FIELDS) {
+        if (entry.bill[field]) Object.assign(next, { [field]: entry.bill[field] });
+      }
+      entry.bill = next;
       touch(entry);
       return publicView(entry);
     },
@@ -139,6 +157,15 @@ export function createMemoryBillStore(options: { ttlMs: number; now?: () => Date
       const entry = live(id);
       if (!entry) return null;
       entry.bill = { ...entry.bill, groups: structuredClone(groups) };
+      touch(entry);
+      return publicView(entry);
+    },
+
+    async setPayments(id, expectedVersion, payments) {
+      const entry = live(id);
+      if (!entry) return null;
+      if (entry.version !== expectedVersion) return 'conflict';
+      entry.bill = { ...entry.bill, payments: structuredClone(payments) };
       touch(entry);
       return publicView(entry);
     },

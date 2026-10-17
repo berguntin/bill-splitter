@@ -1,4 +1,4 @@
-import type { Bill, DinerGroup, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
+import type { Bill, DinerGroup, DinerId, ReceiptIssue, ScannedReceipt } from '@bill-splitter/core';
 import {
   newRequestId,
   recordRequest,
@@ -184,6 +184,7 @@ export type ApiResult<T> = { ok: true; value: T } | Failure<ShareError>;
 
 function shareError(status: number): ShareError {
   if (status === 404) return 'not_found';
+  if (status === 409) return 'server';
   if (status === 401 || status === 403) return 'forbidden';
   if (status === 400) return 'invalid';
   if (status === 429) return 'rate_limited';
@@ -235,6 +236,19 @@ export function setSharedGroups(id: string, groups: DinerGroup[]): Promise<ApiRe
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ groups }),
+  });
+}
+
+/** Says these diners paid (or not); the server records what each owes right now. */
+export function setSharedPaid(
+  id: string,
+  dinerIds: DinerId[],
+  paid: boolean,
+): Promise<ApiResult<SharedBill>> {
+  return sendJson(`/api/bills/${encodeURIComponent(id)}/payments`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dinerIds, paid }),
   });
 }
 
