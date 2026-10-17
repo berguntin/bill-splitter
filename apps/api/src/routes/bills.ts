@@ -1,9 +1,18 @@
 import express, { Router, type Request } from 'express';
 import { rateLimit } from 'express-rate-limit';
+import { computeBreakdown, markPaid, markUnpaid } from '@bill-splitter/core';
 import { z } from 'zod';
 import { BillInputSchema, GroupsSchema, toBill } from '../bills/schema';
 import type { BillEvents } from '../bills/events';
 import { BILL_ID_PATTERN, newBillId, type BillStore, type StoredBill } from '../bills/store';
+
+const PaymentsBodySchema = z.object({
+  dinerIds: z.array(z.string().min(1).max(64)).min(1).max(30),
+  paid: z.boolean(),
+});
+
+/** Attempts at a payment change when the bill keeps changing under it. */
+const PAYMENT_ATTEMPTS = 3;
 
 /** Comment lines keep idle connections from being closed by proxies. */
 export const HEARTBEAT_MS = 25_000;
@@ -131,6 +140,64 @@ export function createBillsRouter(store: BillStore, events: BillEvents): Router 
     req.log.info({ bill: summarize(record), groups: parsed.data.groups.length }, 'groups changed');
     events.publish(record.id, { version: record.version });
     res.json(publicBody(record));
+  });
+
+  /**
+   * Anyone at the table may say they paid (or that someone paid them). The
+   * amount recorded is what each diner owes right now, computed here.
+   */
+  router.put('/:id/payments', limiter(300), express.json({ limit: '10kb' }), async (req, res) => {
+    const id = billIdParam(req);
+    const parsed = PaymentsBodySchema.safeParse(req.body);
+    if (!BILL_ID_PATTERN.test(id)) {
+      res.status(404).json({ error: 'not_found' });
+      return;
+    }
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid_payments', issues: z.flattenError(parsed.error) });
+      return;
+    }
+    const { dinerIds, paid } = parsed.data;
+
+    for (let attempt = 0; attempt < PAYMENT_ATTEMPTS; attempt += 1) {
+      const record = await store.get(id);
+      if (!record) {
+        res.status(404).json({ error: 'not_found' });
+        return;
+      }
+      const known = new Set(record.bill.diners.map((diner) => diner.id));
+      if (!dinerIds.every((dinerId) => known.has(dinerId))) {
+        res.status(400).json({ error: 'unknown_diner' });
+        return;
+      }
+      const owed = new Map(
+        computeBreakdown(record.bill).diners.map((diner) => [diner.dinerId, diner.total]),
+      );
+      const current = record.bill.payments ?? [];
+      const payments = paid
+        ? markPaid(
+            current,
+            new Map(dinerIds.map((dinerId) => [dinerId, owed.get(dinerId) ?? 0])),
+            new Date().toISOString(),
+          )
+        : markUnpaid(current, dinerIds);
+
+      const result = await store.setPayments(id, record.version, payments);
+      if (result === 'conflict') continue;
+      if (!result) {
+        res.status(404).json({ error: 'not_found' });
+        return;
+      }
+      req.log.info(
+        { bill: summarize(result), payments: { diners: dinerIds.length, paid } },
+        'payments changed',
+      );
+      events.publish(result.id, { version: result.version });
+      res.json(publicBody(result));
+      return;
+    }
+    // The bill kept changing; the client can simply try again.
+    res.status(409).json({ error: 'conflict' });
   });
 
   /**

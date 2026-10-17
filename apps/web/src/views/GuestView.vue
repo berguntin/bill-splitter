@@ -3,6 +3,7 @@ import {
   computeBreakdown,
   groupDiners,
   payers,
+  paymentStatus,
   ungroup,
   type Diner,
   type DinerGroup,
@@ -14,6 +15,7 @@ import BreakdownLines from '@/components/BreakdownLines.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
+import PaymentBadge from '@/components/PaymentBadge.vue';
 import SelectMark from '@/components/SelectMark.vue';
 import { usePayTogether } from '@/composables/usePayTogether';
 import { useSharedBill } from '@/composables/useSharedBill';
@@ -26,7 +28,7 @@ const props = defineProps<{ id: string }>();
 const route = useRoute();
 const { t, locale } = useI18n();
 
-const { bill, updatedAt, state, error, errorRef, setGroups } = useSharedBill(props.id);
+const { bill, updatedAt, state, error, errorRef, setGroups, setPaid } = useSharedBill(props.id);
 
 const meKey = `bill-splitter/guest/${props.id}/me`;
 const meId = ref<string | null>(
@@ -62,6 +64,7 @@ const payerRows = computed(() => {
     return {
       key: payer.kind === 'group' ? `group:${payer.groupId}` : payer.dinerId,
       dinerIds: members.map((diner) => diner.id),
+      payment: paymentStatus(payer, bill.value?.payments),
       payer,
       members,
       name: joinNames(members.map((diner) => diner.name)),
@@ -85,6 +88,24 @@ const myGroup = computed(
       (row) => row.payer.kind === 'group' && row.members.some((diner) => diner.id === meId.value),
     ) ?? null,
 );
+/** What the viewer settles: their group's total, or their own. */
+const myPayer = computed(
+  () =>
+    myGroup.value ??
+    payerRows.value.find((row) => row.payer.kind === 'diner' && row.payer.dinerId === meId.value) ??
+    null,
+);
+
+async function markPaid(paid: boolean): Promise<void> {
+  const payer = myPayer.value;
+  if (!payer || saving.value) return;
+  saving.value = true;
+  const result = await setPaid(payer.dinerIds, paid);
+  saving.value = false;
+  if (result !== true) notify(t('guest.paymentFailed'), false);
+  else if (paid) notify(t('guest.markedPaid'), false);
+}
+
 const others = computed(() =>
   payerRows.value.filter(
     (row) => row !== myGroup.value && !row.members.some((diner) => diner.id === meId.value),
@@ -291,13 +312,52 @@ function pick(diner: Diner): void {
             </button>
           </span>
         </div>
+
+        <div v-if="myPayer" class="flex flex-col gap-2" data-testid="my-payment">
+          <div
+            v-if="myPayer.payment.state === 'paid'"
+            class="bg-success-soft text-success-ink flex items-center gap-2 rounded-2xl px-3.5 py-3 text-sm font-bold"
+          >
+            <AppIcon name="check" :size="18" />
+            <span class="flex-1">
+              {{
+                t('guest.youPaid', { time: timeAgo(new Date(myPayer.payment.paidAt), now, locale) })
+              }}
+            </span>
+            <button
+              type="button"
+              class="font-semibold underline underline-offset-2"
+              :disabled="saving"
+              @click="markPaid(false)"
+            >
+              {{ t('common.undo') }}
+            </button>
+          </div>
+          <template v-else>
+            <PaymentBadge
+              v-if="myPayer.payment.state !== 'unpaid'"
+              class="self-start"
+              :status="myPayer.payment"
+              :currency="currency"
+            />
+            <button
+              type="button"
+              class="btn-primary h-13 text-base"
+              :disabled="saving || myPayer.payer.total <= 0"
+              @click="markPaid(true)"
+            >
+              <AppIcon name="check" :size="20" />
+              {{ t('guest.iPaid', { amount: money(myPayer.payer.total, currency) }) }}
+            </button>
+          </template>
+        </div>
       </section>
 
       <p
         v-if="breakdown.unassigned.total !== 0"
         class="bg-warning-soft text-warning-ink rounded-2xl px-4 py-3 text-sm font-semibold"
       >
-        {{ money(breakdown.unassigned.total, currency) }} is still being assigned.
+        {{ t('guest.stillAssigning', { amount: money(breakdown.unassigned.total, currency) }) }}
       </p>
 
       <section v-if="selecting" class="flex flex-col gap-2.5" aria-labelledby="pick">
@@ -378,6 +438,7 @@ function pick(diner: Diner): void {
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-[15px] font-semibold">{{ row.name }}</span>
               <span v-if="row.shares" class="text-ink-muted text-xs">{{ row.shares }}</span>
+              <PaymentBadge class="mt-0.5 self-start" :status="row.payment" :currency="currency" />
             </span>
             <span class="flex flex-col items-end gap-0.5">
               <span class="text-[15px] font-bold tabular-nums">{{

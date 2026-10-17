@@ -88,6 +88,18 @@ to get a bodiless `304` while nothing changed (the web app polls every 5 s).
 
 - `200` `{ id, bill, version, updatedAt, expiresAt }` · `304` · `404`
 
+### `PUT /api/bills/:id/payments`
+
+Says some diners paid (or not). Anyone with the link may: a guest marking
+their own share, or the owner noting cash. Body
+`{ "dinerIds": ["ben"], "paid": true }`. The server records what each diner
+owes at that moment in `bill.payments[]` (`{ dinerId, amount, paidAt }`), so
+apps can tell when the bill changed after someone paid. Owner updates keep
+payments; payments of removed diners are hidden.
+
+- `200` like `GET` · `400` `invalid_payments` | `unknown_diner` · `404` ·
+  `409` `conflict` (the bill kept changing; try again) · `429`
+
 ### `GET /api/bills/:id/events`
 
 Server-sent events (`text/event-stream`) for open pages: a `version` event with

@@ -57,7 +57,9 @@
 - [x] i18n: English and Spanish, picked from the browser's languages, with a
       switch on the home screen
 - PWA, dark mode, accessibility review
-- "Mark as paid" per diner, PayPal.me links, IBAN and Bizum number to copy
+- [x] "Mark as paid": guests mark their share from the shared view, the
+      owner sees it live and can mark cash payments
+- PayPal.me links, IBAN and Bizum number to copy
 - Deploy on a subdomain of Camarero Digital
 
 ## Phase 5: Live collaboration

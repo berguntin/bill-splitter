@@ -23,6 +23,10 @@ const es: Messages = {
     whoHad: 'Quién tomó {name}',
   },
   common: {
+    paid: 'Pagado',
+    partlyPaid: 'Pagado en parte',
+    paidDue: 'Pagado {paid} · faltan {due}',
+    paidBack: 'Pagado {paid} · {back} de más',
     adjustment: {
       discount: 'Descuento',
       service: 'Servicio',
@@ -61,6 +65,11 @@ const es: Messages = {
     title: '¿Quién está en la mesa?',
   },
   guest: {
+    stillAssigning: 'Aún falta asignar {amount}.',
+    iPaid: 'Ya he pagado {amount}',
+    youPaid: 'Pagaste {time}',
+    markedPaid: 'Marcado como pagado',
+    paymentFailed: 'No se ha podido guardar. Revisa tu conexión y vuelve a intentarlo.',
     checkConnection: 'Revisa tu conexión.',
     errorTitle: 'No hemos podido cargar esta cuenta',
     everyone: 'Todos',
@@ -248,6 +257,11 @@ const es: Messages = {
     title: 'Compartir con la mesa',
   },
   summary: {
+    markPaid: 'Marcar como pagado',
+    markUnpaid: 'Marcar como no pagado',
+    paidCount: '{paid} de {n} han pagado',
+    paymentFailed: 'No se ha podido guardar el pago. Vuelve a intentarlo.',
+    markedPaid: '{names}: marcado como pagado',
     copied: 'Copiado al portapapeles',
     copy: 'Copiar',
     copyFailed: 'No se ha podido copiar. Prueba a compartirlo.',

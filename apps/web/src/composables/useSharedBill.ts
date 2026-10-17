@@ -1,6 +1,12 @@
-import type { Bill, DinerGroup } from '@bill-splitter/core';
+import type { Bill, DinerGroup, DinerId } from '@bill-splitter/core';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { fetchSharedBill, setSharedGroups, type Failure, type ShareError } from '@/lib/api';
+import {
+  fetchSharedBill,
+  setSharedGroups,
+  setSharedPaid,
+  type Failure,
+  type ShareError,
+} from '@/lib/api';
 import { followSharedBill } from '@/lib/followSharedBill';
 
 /**
@@ -82,5 +88,15 @@ export function useSharedBill(id: string) {
     return true;
   }
 
-  return { bill, updatedAt, state, error, errorRef, refresh, setGroups };
+  /** Says these diners paid (or not); the server records the amounts. */
+  async function setPaid(dinerIds: DinerId[], paid: boolean): Promise<true | Failure<ShareError>> {
+    const result = await setSharedPaid(id, dinerIds, paid);
+    if (!result.ok) return result;
+    bill.value = result.value.bill;
+    updatedAt.value = new Date(result.value.updatedAt);
+    etag = null;
+    return true;
+  }
+
+  return { bill, updatedAt, state, error, errorRef, refresh, setGroups, setPaid };
 }

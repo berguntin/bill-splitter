@@ -16,6 +16,7 @@ import {
   type DinerId,
   type Item,
   type ItemId,
+  type Payment,
   type ScannedReceipt,
 } from '@bill-splitter/core';
 import { defineStore } from 'pinia';
@@ -227,6 +228,12 @@ export const useBillStore = defineStore('bill', () => {
     );
   }
 
+  /** Takes who has paid from the shared copy; only the server changes payments. */
+  function applySharedPayments(payments: Payment[]): void {
+    if (JSON.stringify(payments) === JSON.stringify(bill.value.payments ?? [])) return;
+    bill.value.payments = payments;
+  }
+
   /** Each member of the group pays on their own again. */
   function ungroup(groupId: string): void {
     if (!bill.value.groups?.some((group) => group.id === groupId)) return;
@@ -336,6 +343,7 @@ export const useBillStore = defineStore('bill', () => {
     groupDiners,
     ungroup,
     applySharedGroups,
+    applySharedPayments,
     toggleDiner,
     toggleEveryone,
     assignRestToEveryone,

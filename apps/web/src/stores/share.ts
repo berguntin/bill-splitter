@@ -1,10 +1,11 @@
-import type { Bill, DinerGroup } from '@bill-splitter/core';
+import type { Bill, DinerGroup, DinerId } from '@bill-splitter/core';
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import {
   createSharedBill,
   fetchSharedBill,
   setSharedGroups,
+  setSharedPaid,
   updateSharedBill,
   type Failure,
   type ShareError,
@@ -48,8 +49,8 @@ function groupsKey(groups: DinerGroup[] | undefined): string {
   );
 }
 
-/** Everything the owner alone controls: the bill without its groups. */
-function ownerKey({ groups: _groups, ...rest }: Bill): string {
+/** Everything the owner alone controls: the bill without its groups and payments. */
+function ownerKey({ groups: _groups, payments: _payments, ...rest }: Bill): string {
   return JSON.stringify(rest);
 }
 
@@ -162,6 +163,8 @@ export const useShareStore = defineStore('share', () => {
   async function reconcileGroups(remote: Bill | null): Promise<true | Failure<ShareError>> {
     const current = activeLink.value;
     if (!current) return true;
+    // Payments are only ever changed on the server; the local copy just mirrors them.
+    if (remote) billStore.applySharedPayments(remote.payments ?? []);
     const local = billStore.bill.groups ?? [];
     const synced = current.syncedGroups ?? [];
 
@@ -239,5 +242,18 @@ export const useShareStore = defineStore('share', () => {
     errorRef.value = null;
   }
 
-  return { isShared, url, status, error, errorRef, share, stopSharing };
+  /** Notes that these diners paid (or not), e.g. someone who handed over cash. */
+  async function setPaid(dinerIds: DinerId[], paid: boolean): Promise<boolean> {
+    const current = activeLink.value;
+    if (!current) return false;
+    const result = await setSharedPaid(current.remoteId, dinerIds, paid);
+    if (!result.ok) {
+      failed(result);
+      return false;
+    }
+    billStore.applySharedPayments(result.value.bill.payments ?? []);
+    return true;
+  }
+
+  return { isShared, url, status, error, errorRef, share, setPaid, stopSharing };
 });

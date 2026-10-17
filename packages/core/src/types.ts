@@ -91,4 +91,14 @@ export interface Bill {
   merchant?: string;
   /** Diners paying together. Missing means everyone pays on their own. */
   groups?: DinerGroup[];
+  /** Who has already paid their share, on a shared bill. */
+  payments?: Payment[];
+}
+
+/** A diner saying they paid (or the owner noting it), with what they owed at that moment. */
+export interface Payment {
+  dinerId: DinerId;
+  amount: Cents;
+  /** ISO 8601 timestamp. */
+  paidAt: string;
 }

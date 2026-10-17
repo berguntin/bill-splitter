@@ -24,6 +24,10 @@ const en = {
     whoHad: 'Who had {name}',
   },
   common: {
+    paid: 'Paid',
+    partlyPaid: 'Partly paid',
+    paidDue: 'Paid {paid} · {due} to go',
+    paidBack: 'Paid {paid} · {back} too much',
     adjustment: {
       discount: 'Discount',
       service: 'Service',
@@ -62,6 +66,11 @@ const en = {
     title: "Who's at the table?",
   },
   guest: {
+    stillAssigning: '{amount} is still being assigned.',
+    iPaid: "I've paid {amount}",
+    youPaid: 'You paid {time}',
+    markedPaid: 'Marked as paid',
+    paymentFailed: "Couldn't save that. Check your connection and try again.",
     checkConnection: 'Check your connection.',
     errorTitle: "We couldn't load this bill",
     everyone: 'Everyone',
@@ -245,6 +254,11 @@ const en = {
     title: 'Share with the table',
   },
   summary: {
+    markPaid: 'Mark as paid',
+    markUnpaid: 'Mark as not paid',
+    paidCount: '{paid} of {n} paid',
+    paymentFailed: "Couldn't save the payment. Try again.",
+    markedPaid: '{names} marked as paid',
     copied: 'Copied to the clipboard',
     copy: 'Copy',
     copyFailed: 'Could not copy. Try sharing instead.',

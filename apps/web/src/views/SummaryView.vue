@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { parseMoney, type Diner, type Payer } from '@bill-splitter/core';
+import { parseMoney, paymentStatus, type Diner, type Payer } from '@bill-splitter/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
 import BreakdownLines from '@/components/BreakdownLines.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
+import PaymentBadge from '@/components/PaymentBadge.vue';
 import StepHeader from '@/components/StepHeader.vue';
 import { joinNames, money } from '@/lib/format';
 import { summaryText } from '@/lib/summaryText';
 import SelectMark from '@/components/SelectMark.vue';
 import { usePayTogether } from '@/composables/usePayTogether';
 import { useBillStore } from '@/stores/bill';
+import { useShareStore } from '@/stores/share';
 
 const store = useBillStore();
+const shareStore = useShareStore();
 const { t } = useI18n();
 const currency = computed(() => store.bill.currency);
 
@@ -42,6 +45,7 @@ const rows = computed(() =>
       payer,
       diners,
       name: joinNames(diners.map((diner) => diner.name)),
+      payment: paymentStatus(payer, store.bill.payments),
     };
   }),
 );
@@ -81,6 +85,21 @@ function separate(payer: Extract<Payer, { kind: 'group' }>, diners: Diner[]): vo
   store.ungroup(payer.groupId);
   expanded.value = null;
   notify(t('common.separatedToast', { names: joinNames(diners.map((diner) => diner.name)) }), true);
+}
+
+/** Payments only exist on a shared bill: guests mark them from their phones. */
+const paidCount = computed(() => rows.value.filter((row) => row.payment.state === 'paid').length);
+
+const savingPayment = ref(false);
+
+async function togglePaid(row: (typeof rows.value)[number]): Promise<void> {
+  if (savingPayment.value) return;
+  savingPayment.value = true;
+  const paid = row.payment.state !== 'paid';
+  const saved = await shareStore.setPaid(row.dinerIds, paid);
+  savingPayment.value = false;
+  if (!saved) notify(t('summary.paymentFailed'));
+  else if (paid) notify(t('summary.markedPaid', { names: row.name }));
 }
 
 function undo(): void {
@@ -214,8 +233,15 @@ async function copy(): Promise<void> {
     </RouterLink>
 
     <div class="flex items-center justify-between">
-      <h2 class="text-[15px] font-bold">
+      <h2 class="flex items-baseline gap-2 text-[15px] font-bold">
         {{ selecting ? t('common.whoPaysTogether') : t('summary.whoPaysWhat') }}
+        <span
+          v-if="!selecting && shareStore.isShared && paidCount > 0"
+          class="text-success-ink text-[13px] font-semibold"
+          data-testid="paid-count"
+        >
+          {{ t('summary.paidCount', { paid: paidCount, n: rows.length }) }}
+        </span>
       </h2>
       <button
         v-if="!selecting && rows.length > 1"
@@ -257,6 +283,12 @@ async function copy(): Promise<void> {
               <AppIcon name="link" :size="12" />
               {{ t('common.payingTogether') }}
             </span>
+            <PaymentBadge
+              v-if="shareStore.isShared"
+              class="mt-0.5 self-start"
+              :status="row.payment"
+              :currency="currency"
+            />
           </span>
           <span class="text-[17px] font-extrabold tabular-nums">
             {{ money(row.payer.total, currency) }}
@@ -306,6 +338,21 @@ async function copy(): Promise<void> {
               @click="separate(row.payer, row.diners)"
             >
               {{ t('common.paySeparately') }}
+            </button>
+          </div>
+          <div v-if="shareStore.isShared" class="flex justify-end px-4 pb-4">
+            <button
+              type="button"
+              class="h-9 rounded-full px-3.5 text-[13px] font-bold"
+              :class="
+                row.payment.state === 'paid'
+                  ? 'border-line text-ink-muted border'
+                  : 'bg-success-soft text-success-ink'
+              "
+              :disabled="savingPayment"
+              @click="togglePaid(row)"
+            >
+              {{ row.payment.state === 'paid' ? t('summary.markUnpaid') : t('summary.markPaid') }}
             </button>
           </div>
         </template>

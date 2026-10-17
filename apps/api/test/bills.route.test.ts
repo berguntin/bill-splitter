@@ -161,6 +161,71 @@ describe('bills API', () => {
     });
   });
 
+  describe('payments', () => {
+    const table = {
+      ...input,
+      diners: [
+        { id: 'ana', name: 'Ana', color: 'coral' },
+        { id: 'ben', name: 'Ben', color: 'teal' },
+      ],
+    };
+
+    async function sharedTable() {
+      const app = createApp(config, testDependencies());
+      const created = await request(app).post('/api/bills').send({ bill: table });
+      return { app, id: created.body.id as string, token: created.body.ownerToken as string };
+    }
+
+    it('records what a diner owed when they say they paid, and can take it back', async () => {
+      const { app, id } = await sharedTable();
+
+      const paid = await request(app)
+        .put(`/api/bills/${id}/payments`)
+        .send({ dinerIds: ['ana'], paid: true });
+      expect(paid.status).toBe(200);
+      expect(paid.body.bill.payments).toEqual([
+        { dinerId: 'ana', amount: 600, paidAt: expect.any(String) },
+      ]);
+
+      const undone = await request(app)
+        .put(`/api/bills/${id}/payments`)
+        .send({ dinerIds: ['ana'], paid: false });
+      expect(undone.body.bill.payments).toEqual([]);
+    });
+
+    it("keeps payments when the owner saves, and drops removed diners' ones", async () => {
+      const { app, id, token } = await sharedTable();
+      await request(app)
+        .put(`/api/bills/${id}/payments`)
+        .send({ dinerIds: ['ana', 'ben'], paid: true });
+
+      const saved = await request(app)
+        .put(`/api/bills/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ bill: { ...table, diners: table.diners.slice(0, 1), payments: [] } });
+
+      expect(saved.body.bill.payments).toEqual([
+        { dinerId: 'ana', amount: 600, paidAt: expect.any(String) },
+      ]);
+    });
+
+    it('rejects unknown diners and malformed bodies', async () => {
+      const { app, id } = await sharedTable();
+      const unknown = await request(app)
+        .put(`/api/bills/${id}/payments`)
+        .send({ dinerIds: ['ghost'], paid: true });
+      expect(unknown.body).toEqual({ error: 'unknown_diner' });
+      const malformed = await request(app)
+        .put(`/api/bills/${id}/payments`)
+        .send({ dinerIds: [], paid: 'yes' });
+      expect(malformed.status).toBe(400);
+      const missing = await request(app)
+        .put('/api/bills/Abc1234567/payments')
+        .send({ dinerIds: ['ana'], paid: true });
+      expect(missing.status).toBe(404);
+    });
+  });
+
   it('rejects invalid bills', async () => {
     const app = createApp(config, testDependencies());
     const cases = [
