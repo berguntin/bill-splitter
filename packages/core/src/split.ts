@@ -17,6 +17,8 @@ export interface ItemLine {
   /** This diner's weight and the total weight, e.g. 1 of 3 for a three-way split. */
   weight: number;
   totalWeight: number;
+  /** Units this diner had, when the line is counted by units. */
+  units?: number;
 }
 
 export interface AdjustmentLine {
@@ -34,6 +36,7 @@ export interface DinerBreakdown {
 }
 
 export interface UnassignedBreakdown {
+  /** Items nobody has claimed, or with units nobody has claimed yet. */
   itemIds: ItemId[];
   itemsSubtotal: Cents;
   /** Share of proportional adjustments that belongs to unassigned items. */
@@ -73,6 +76,32 @@ export function computeBreakdown(bill: Bill): Breakdown {
   for (const item of bill.items) {
     assertInteger(item.total, `Total of item "${item.name}"`);
     itemsTotal += item.total;
+
+    if (item.assignment.mode === 'units') {
+      const units = resolveUnits(item, bill.diners);
+      const claimed = units.reduce((sum, unit) => sum + unit.count, 0);
+      // Units nobody claimed yet: their part of the price stays unassigned.
+      const leftover = Math.max(0, unitCount(item) - claimed);
+      const amounts = allocate(item.total, [...units.map((unit) => unit.count), leftover]);
+      units.forEach((unit, index) => {
+        const breakdown = dinerTotals.get(unit.dinerId)!;
+        const amount = amounts[index] ?? 0;
+        breakdown.items.push({
+          itemId: item.id,
+          name: item.name,
+          amount,
+          weight: unit.count,
+          totalWeight: claimed + leftover,
+          units: unit.count,
+        });
+        breakdown.itemsSubtotal += amount;
+      });
+      if (leftover > 0) {
+        unassigned.itemIds.push(item.id);
+        unassigned.itemsSubtotal += amounts.at(-1) ?? 0;
+      }
+      continue;
+    }
 
     const shares = resolveShares(item, bill.diners);
     if (shares.length === 0) {
@@ -171,6 +200,7 @@ function resolveShares(
 
   switch (assignment.mode) {
     case 'unassigned':
+    case 'units':
       return [];
     case 'single':
       return known.has(assignment.dinerId) ? [{ dinerId: assignment.dinerId, weight: 1 }] : [];
@@ -188,6 +218,24 @@ function resolveShares(
         .map((diner) => ({ dinerId: diner.id, weight: merged.get(diner.id)! }));
     }
   }
+}
+
+/** Units of a line that can be counted: its quantity when it is a whole number, else 1. */
+export function unitCount(item: Item): number {
+  return Number.isInteger(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+}
+
+/** Claimed units among existing diners, in the diners' order, merged and positive. */
+function resolveUnits(item: Item, diners: readonly Diner[]): { dinerId: DinerId; count: number }[] {
+  if (item.assignment.mode !== 'units') return [];
+  const merged = new Map<DinerId, number>();
+  for (const { dinerId, count } of item.assignment.units) {
+    if (!Number.isInteger(count) || count <= 0) continue;
+    merged.set(dinerId, (merged.get(dinerId) ?? 0) + count);
+  }
+  return diners
+    .filter((diner) => merged.has(diner.id))
+    .map((diner) => ({ dinerId: diner.id, count: merged.get(diner.id)! }));
 }
 
 interface Recipient {

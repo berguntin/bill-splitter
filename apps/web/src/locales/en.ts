@@ -4,6 +4,11 @@
  */
 const en = {
   assign: {
+    byUnits: 'By units',
+    splitEqually: 'Split equally',
+    unitsLeft: '{left} of {n} still to claim',
+    oneMore: 'One more for {name}',
+    oneLess: 'One less for {name}',
     all: 'All',
     everyoneEach: 'Everyone · {amount} each',
     items: 'Items',
@@ -13,7 +18,6 @@ const en = {
     runningTotals: 'Running totals',
     seeSplit: 'See the split',
     sharedEach: '{names} · {amount} each',
-    splitInto: 'Split into {n}',
     step: 'Step 3 of 3',
     tapWho: 'Tap who had it',
     title: 'Who had what?',

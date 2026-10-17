@@ -119,22 +119,39 @@ describe('useBillStore', () => {
     });
   });
 
-  it('splits multi-quantity lines into units in place', () => {
+  it('counts units of a line per diner, and undoes each step', () => {
     const store = useBillStore();
-    store.addItem({ name: 'Bread', total: 200 });
-    const beers = store.addItem({ name: 'Beer', total: 750, quantity: 3 });
-    store.addItem({ name: 'Water', total: 300 });
+    const ana = store.addDiner('Ana')!;
+    const ben = store.addDiner('Ben')!;
+    const beers = store.addItem({ name: 'Beer', total: 1000, quantity: 5 });
 
-    store.splitItem(beers);
+    store.toggleUnitMode(beers);
+    store.setUnits(beers, ana.id, 1);
+    store.setUnits(beers, ben.id, 2);
+    expect(totals(store)).toEqual([200, 400]);
+    // Two units are still unclaimed, so the line is not done.
+    expect(store.pendingItemIds).toEqual([beers]);
 
-    expect(store.bill.items.map((item) => item.name)).toEqual([
-      'Bread',
-      'Beer',
-      'Beer',
-      'Beer',
-      'Water',
-    ]);
-    expect(store.bill.items.slice(1, 4).every((item) => item.total === 250)).toBe(true);
+    store.undo();
+    expect(totals(store)).toEqual([200, 0]);
+    store.toggleUnitMode(beers);
+    expect(store.bill.items[0]!.assignment).toEqual({ mode: 'single', dinerId: ana.id });
+  });
+
+  it('leaves lines counted by units out of "split the rest"', () => {
+    const store = useBillStore();
+    const ana = store.addDiner('Ana')!;
+    const beers = store.addItem({ name: 'Beer', total: 1000, quantity: 5 });
+    const bread = store.addItem({ name: 'Bread', total: 200 });
+    store.toggleUnitMode(beers);
+    store.setUnits(beers, ana.id, 1);
+
+    store.assignRestToEveryone();
+
+    expect(store.pendingItemIds).toEqual([beers]);
+    expect(store.bill.items.find((item) => item.id === bread)!.assignment).toEqual({
+      mode: 'everyone',
+    });
   });
 
   it('gives every unclaimed item to the whole table', () => {

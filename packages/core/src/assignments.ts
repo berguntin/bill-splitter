@@ -1,4 +1,5 @@
-import type { Assignment, Diner, DinerId } from './types';
+import { unitCount } from './split';
+import type { Assignment, Diner, DinerId, Item } from './types';
 
 /** Ids of the diners an assignment currently covers, in the diners' order. */
 export function assignedDinerIds(assignment: Assignment, diners: readonly Diner[]): DinerId[] {
@@ -15,7 +16,62 @@ export function assignedDinerIds(assignment: Assignment, diners: readonly Diner[
       );
       return diners.filter((diner) => ids.has(diner.id)).map((diner) => diner.id);
     }
+    case 'units': {
+      const ids = new Set(
+        assignment.units.filter((unit) => unit.count > 0).map((unit) => unit.dinerId),
+      );
+      return diners.filter((diner) => ids.has(diner.id)).map((diner) => diner.id);
+    }
   }
+}
+
+/** Units of a line each diner had; zero for diners not counted. */
+export function unitsOf(assignment: Assignment, dinerId: DinerId): number {
+  if (assignment.mode !== 'units') return 0;
+  return assignment.units
+    .filter((unit) => unit.dinerId === dinerId)
+    .reduce((sum, unit) => sum + unit.count, 0);
+}
+
+/** Units of a line nobody has claimed yet (always 0 unless counted by units). */
+export function unitsLeft(item: Item, diners: readonly Diner[]): number {
+  if (item.assignment.mode !== 'units') return 0;
+  const claimed = diners.reduce((sum, diner) => sum + unitsOf(item.assignment, diner.id), 0);
+  return Math.max(0, unitCount(item) - claimed);
+}
+
+/**
+ * Sets how many units of a line a diner had, between 0 and the units still
+ * free plus theirs. Starts counting by units if the line was split another way.
+ */
+export function setUnits(
+  item: Item,
+  dinerId: DinerId,
+  count: number,
+  diners: readonly Diner[],
+): Assignment {
+  const current = item.assignment.mode === 'units' ? item.assignment.units : [];
+  const others = current.filter((unit) => unit.dinerId !== dinerId && unit.count > 0);
+  const known = new Set(diners.map((diner) => diner.id));
+  const taken = others
+    .filter((unit) => known.has(unit.dinerId))
+    .reduce((sum, unit) => sum + unit.count, 0);
+  const clamped = Math.max(0, Math.min(Math.floor(count), unitCount(item) - taken));
+  const units = diners.flatMap((diner) => {
+    if (diner.id === dinerId) return clamped > 0 ? [{ dinerId, count: clamped }] : [];
+    return others.filter((unit) => unit.dinerId === diner.id);
+  });
+  return { mode: 'units', units };
+}
+
+/** Switches a line to counting by units (nobody counted yet) or back to equal parts. */
+export function toggleUnitMode(item: Item, diners: readonly Diner[]): Assignment {
+  if (item.assignment.mode !== 'units') return { mode: 'units', units: [] };
+  // Back to equal parts among whoever had some units.
+  const ids = assignedDinerIds(item.assignment, diners);
+  if (ids.length === 0) return { mode: 'unassigned' };
+  if (ids.length === 1) return { mode: 'single', dinerId: ids[0]! };
+  return { mode: 'shared', shares: ids.map((id) => ({ dinerId: id, weight: 1 })) };
 }
 
 /**

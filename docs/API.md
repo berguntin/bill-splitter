@@ -54,7 +54,9 @@ totals are required.
 
 Amounts are integer cents. Optional fields: `diners[]` (`id`, `name`, `color`),
 item `id`, `quantity` (default 1), `unitPrice`, `assignment` (default
-`{ "mode": "unassigned" }`), `adjustments[]`, `receiptTotal`, and `groups[]`
+`{ "mode": "unassigned" }`; also `single`, `shared` with weights, `everyone`, or
+`{ "mode": "units", "units": [{ "dinerId": "ana", "count": 2 }] }` for lines
+counted unit by unit), `adjustments[]`, `receiptTotal`, and `groups[]`
 (`{ id, dinerIds }`, two or more diners who pay together; ids of unknown diners
 are dropped).
 

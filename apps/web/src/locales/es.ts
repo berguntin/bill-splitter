@@ -3,6 +3,11 @@ import type { Messages } from './en';
 /** Spanish UI copy. Must have exactly the keys of `en.ts`; type checking enforces it. */
 const es: Messages = {
   assign: {
+    byUnits: 'Por unidades',
+    splitEqually: 'A partes iguales',
+    unitsLeft: 'Faltan {left} de {n} por asignar',
+    oneMore: 'Una más para {name}',
+    oneLess: 'Una menos para {name}',
     all: 'Todos',
     everyoneEach: 'Todos · {amount} cada uno',
     items: 'Productos',
@@ -12,7 +17,6 @@ const es: Messages = {
     runningTotals: 'Totales hasta ahora',
     seeSplit: 'Ver el reparto',
     sharedEach: '{names} · {amount} cada uno',
-    splitInto: 'Dividir en {n}',
     step: 'Paso 3 de 3',
     tapWho: 'Toca quién lo tomó',
     title: '¿Quién tomó qué?',

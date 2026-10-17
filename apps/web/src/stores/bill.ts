@@ -3,10 +3,11 @@ import {
   groupDiners as groupDinersIn,
   payers as payersOf,
   pruneGroups,
-  splitIntoUnits,
+  setUnits as setUnitsIn,
   ungroup as ungroupIn,
   toggleDiner as toggleDinerIn,
   toggleEveryone as toggleEveryoneIn,
+  toggleUnitMode as toggleUnitModeIn,
   type Adjustment,
   type Bill,
   type Cents,
@@ -176,16 +177,6 @@ export const useBillStore = defineStore('bill', () => {
     });
   }
 
-  /** Replaces a multi-quantity line with one line per unit, in place. */
-  function splitItem(id: ItemId): void {
-    const index = bill.value.items.findIndex((item) => item.id === id);
-    const item = bill.value.items[index];
-    if (!item || splitIntoUnits(item).length === 1) return;
-    commit((draft) => {
-      draft.items.splice(index, 1, ...splitIntoUnits(item));
-    });
-  }
-
   function addDiner(name: string): Diner | null {
     const trimmed = name.trim();
     if (!trimmed) return null;
@@ -260,13 +251,41 @@ export const useBillStore = defineStore('bill', () => {
     });
   }
 
-  /** Splits every item nobody has claimed among the whole table. */
+  /** Sets how many units of a multi-quantity line a diner had. */
+  function setUnits(itemId: ItemId, dinerId: DinerId, count: number): void {
+    const item = findItem(itemId);
+    if (!item) return;
+    const assignment = setUnitsIn(item, dinerId, count, bill.value.diners);
+    if (JSON.stringify(assignment) === JSON.stringify(item.assignment)) return;
+    commit((draft) => {
+      draft.items.find((candidate) => candidate.id === itemId)!.assignment = assignment;
+    });
+  }
+
+  /** Switches a line between equal parts and counting by units. */
+  function toggleUnitMode(itemId: ItemId): void {
+    const item = findItem(itemId);
+    if (!item) return;
+    commit((draft) => {
+      const target = draft.items.find((candidate) => candidate.id === itemId)!;
+      target.assignment = toggleUnitModeIn(target, draft.diners);
+    });
+  }
+
+  /**
+   * Splits every item nobody has claimed among the whole table. Lines counted
+   * by units are left alone: their missing units are a question, not a default.
+   */
   function assignRestToEveryone(): void {
     const pending = new Set(pendingItemIds.value);
-    if (pending.size === 0) return;
+    const targets = bill.value.items.filter(
+      (item) => pending.has(item.id) && item.assignment.mode !== 'units',
+    );
+    if (targets.length === 0) return;
+    const ids = new Set(targets.map((item) => item.id));
     commit((draft) => {
       for (const item of draft.items) {
-        if (pending.has(item.id)) item.assignment = { mode: 'everyone' };
+        if (ids.has(item.id)) item.assignment = { mode: 'everyone' };
       }
     });
   }
@@ -310,7 +329,8 @@ export const useBillStore = defineStore('bill', () => {
     confirmItem,
     loadScannedReceipt,
     removeItem,
-    splitItem,
+    setUnits,
+    toggleUnitMode,
     addDiner,
     removeDiner,
     groupDiners,
