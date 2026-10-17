@@ -59,6 +59,8 @@
 - PWA, dark mode, accessibility review
 - [x] "Mark as paid": guests mark their share from the shared view, the
       owner sees it live and can mark cash payments
+- [x] Recent bills: the last 20 bills split on the device, saved in
+      `localStorage` as they change, reopened as they were (with their link)
 - PayPal.me links, IBAN and Bizum number to copy
 - Deploy on a subdomain of Camarero Digital
 

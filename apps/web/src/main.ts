@@ -7,6 +7,7 @@ import { installDiagnostics } from './lib/installDiagnostics';
 import { initMonitoring } from './lib/monitoring';
 import { installUpdateReload } from './lib/updateReload';
 import { router } from './router';
+import { useHistoryStore } from './stores/history';
 import { useShareStore } from './stores/share';
 import './assets/main.css';
 
@@ -17,7 +18,8 @@ app.use(router);
 app.use(i18n);
 installDiagnostics(app, router);
 installUpdateReload(router);
-// Keeps a shared bill in sync from any screen, also right after a reload.
+// Keep a shared bill in sync and the recent bills saved from any screen, also after a reload.
 useShareStore();
+useHistoryStore();
 app.mount('#app');
 void initMonitoring(app, router);

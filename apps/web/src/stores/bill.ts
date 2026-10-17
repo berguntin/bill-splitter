@@ -97,6 +97,12 @@ export const useBillStore = defineStore('bill', () => {
     if (previous) bill.value = previous;
   }
 
+  /** Makes a bill from the history the current one, as it was left. */
+  function restore(saved: Bill): void {
+    bill.value = clone(saved);
+    history.value = [];
+  }
+
   function reset(): void {
     bill.value = emptyBill();
     history.value = [];
@@ -330,6 +336,7 @@ export const useBillStore = defineStore('bill', () => {
     tip,
     undo,
     reset,
+    restore,
     setReceiptTotal,
     addItem,
     updateItemTotal,
