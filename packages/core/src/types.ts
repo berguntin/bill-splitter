@@ -25,7 +25,18 @@ export type Assignment =
   | { mode: 'single'; dinerId: DinerId }
   | { mode: 'shared'; shares: Share[] }
   /** Split equally among every diner, including diners added later. */
-  | { mode: 'everyone' };
+  | { mode: 'everyone' }
+  /**
+   * Counted by units, for lines like "5x Beer": each diner pays for the units
+   * they had. Units nobody has claimed yet stay unassigned.
+   */
+  | { mode: 'units'; units: UnitCount[] };
+
+export interface UnitCount {
+  dinerId: DinerId;
+  /** Whole units of the line this diner had. */
+  count: number;
+}
 
 export interface Item {
   id: ItemId;

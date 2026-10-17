@@ -7,6 +7,7 @@ export type IconName =
   | 'back'
   | 'close'
   | 'plus'
+  | 'minus'
   | 'undo'
   | 'check'
   | 'chevron-down'
@@ -38,6 +39,7 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 20 });
     <path v-if="name === 'back'" d="M15 18l-6-6 6-6" />
     <path v-else-if="name === 'close'" d="M6 6l12 12M18 6L6 18" />
     <path v-else-if="name === 'plus'" d="M12 5v14M5 12h14" />
+    <path v-else-if="name === 'minus'" d="M5 12h14" />
     <template v-else-if="name === 'undo'">
       <path d="M9 14L4 9l5-5" />
       <path d="M4 9h11a5 5 0 0 1 0 10h-3" />

@@ -11,7 +11,8 @@ const { t } = useI18n();
   <p v-if="breakdown.items.length === 0">{{ t('common.nothingAssigned') }}</p>
   <div v-for="line in breakdown.items" :key="line.itemId" class="flex justify-between gap-3">
     <span>
-      <template v-if="fractionLabel(line.weight, line.totalWeight)">
+      <template v-if="line.units">{{ line.units }}× </template>
+      <template v-else-if="fractionLabel(line.weight, line.totalWeight)">
         {{ fractionLabel(line.weight, line.totalWeight) }} ·
       </template>
       {{ line.name }}

@@ -33,9 +33,9 @@ test('splits a bill entered by hand and keeps it after a reload', async ({ page 
   // Step 3: assign.
   await expect(page.getByRole('button', { name: '3 items left to assign' })).toBeDisabled();
   await itemCard(page, 'Pizza').getByRole('button', { name: 'All' }).click();
-  await itemCard(page, 'Wine').getByRole('button', { name: 'Split into 2' }).click();
-  await itemCard(page, 'Wine').nth(0).getByRole('button', { name: 'Ana' }).click();
-  await itemCard(page, 'Wine').nth(1).getByRole('button', { name: 'Ben' }).click();
+  await itemCard(page, 'Wine').getByRole('button', { name: 'By units' }).click();
+  await itemCard(page, 'Wine').getByRole('button', { name: 'One more for Ana' }).click();
+  await itemCard(page, 'Wine').getByRole('button', { name: 'One more for Ben' }).click();
   await itemCard(page, 'Water').getByRole('button', { name: 'Ana' }).click();
 
   // Undo the last tap and redo it, to cover the undo button.

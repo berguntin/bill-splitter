@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { assignedDinerIds, type Item } from '@bill-splitter/core';
+import { assignedDinerIds, unitsLeft, unitsOf, type Item } from '@bill-splitter/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
@@ -27,12 +27,21 @@ const shareAmounts = computed(() => {
 });
 
 const pendingCount = computed(() => store.pendingItemIds.length);
+const pending = computed(() => new Set(store.pendingItemIds));
 
 function selectedIds(item: Item): string[] {
   return assignedDinerIds(item.assignment, store.bill.diners);
 }
 
 function status(item: Item): string {
+  if (item.assignment.mode === 'units') {
+    const left = unitsLeft(item, store.bill.diners);
+    if (left > 0) return t('assign.unitsLeft', { left, n: item.quantity });
+    return store.bill.diners
+      .filter((diner) => unitsOf(item.assignment, diner.id) > 0)
+      .map((diner) => `${diner.name} ×${unitsOf(item.assignment, diner.id)}`)
+      .join(' · ');
+  }
   const ids = selectedIds(item);
   if (ids.length === 0) return t('assign.tapWho');
   const amount = money(shareAmounts.value.get(`${item.id}:${ids[0]}`) ?? 0, currency.value);
@@ -50,7 +59,8 @@ function chipStyle(color: string, selected: boolean): Record<string, string> {
   return { backgroundColor: swatch.fill, borderColor: swatch.fill, color: swatch.ink };
 }
 
-function canSplit(item: Item): boolean {
+/** Lines like "5x Beer" can be counted unit by unit instead of split equally. */
+function canCountUnits(item: Item): boolean {
   return Number.isInteger(item.quantity) && item.quantity > 1;
 }
 </script>
@@ -92,9 +102,7 @@ function canSplit(item: Item): boolean {
         v-for="item in store.bill.items"
         :key="item.id"
         class="bg-surface-raised flex flex-col gap-2.5 rounded-[18px] px-4 py-3.5"
-        :class="
-          selectedIds(item).length ? 'border-line border' : 'border-warning-line border-[1.5px]'
-        "
+        :class="pending.has(item.id) ? 'border-warning-line border-[1.5px]' : 'border-line border'"
       >
         <div class="flex items-baseline gap-2">
           <span class="flex-1 text-[15px] font-bold">
@@ -106,7 +114,43 @@ function canSplit(item: Item): boolean {
           </span>
         </div>
 
+        <ul
+          v-if="item.assignment.mode === 'units'"
+          class="flex flex-col gap-1.5"
+          :aria-label="t('assign.whoHad', { name: item.name })"
+        >
+          <li v-for="diner in store.bill.diners" :key="diner.id" class="flex items-center gap-3">
+            <DinerAvatar :diner="diner" :size="28" />
+            <span class="flex-1 text-sm font-semibold">{{ diner.name }}</span>
+            <button
+              type="button"
+              class="icon-btn size-9"
+              :aria-label="t('assign.oneLess', { name: diner.name })"
+              :disabled="unitsOf(item.assignment, diner.id) === 0"
+              @click="store.setUnits(item.id, diner.id, unitsOf(item.assignment, diner.id) - 1)"
+            >
+              <AppIcon name="minus" :size="16" />
+            </button>
+            <span
+              class="w-6 text-center text-[15px] font-bold tabular-nums"
+              :data-testid="`units-${diner.name}`"
+            >
+              {{ unitsOf(item.assignment, diner.id) }}
+            </span>
+            <button
+              type="button"
+              class="icon-btn size-9"
+              :aria-label="t('assign.oneMore', { name: diner.name })"
+              :disabled="unitsLeft(item, store.bill.diners) === 0"
+              @click="store.setUnits(item.id, diner.id, unitsOf(item.assignment, diner.id) + 1)"
+            >
+              <AppIcon name="plus" :size="16" />
+            </button>
+          </li>
+        </ul>
+
         <div
+          v-else
           class="flex flex-wrap items-center gap-2"
           role="group"
           :aria-label="t('assign.whoHad', { name: item.name })"
@@ -142,18 +186,18 @@ function canSplit(item: Item): boolean {
         <div class="flex items-center justify-between gap-2">
           <span
             class="text-[13px] font-semibold"
-            :class="selectedIds(item).length ? 'text-ink-muted' : 'text-warning-ink'"
+            :class="pending.has(item.id) ? 'text-warning-ink' : 'text-ink-muted'"
           >
             {{ status(item) }}
           </span>
           <button
-            v-if="canSplit(item)"
+            v-if="canCountUnits(item)"
             type="button"
-            class="text-accent-text flex h-8 items-center gap-1 text-[13px] font-bold"
-            @click="store.splitItem(item.id)"
+            class="text-accent-text flex h-8 shrink-0 items-center gap-1 text-[13px] font-bold"
+            @click="store.toggleUnitMode(item.id)"
           >
             <AppIcon name="split" :size="16" />
-            {{ t('assign.splitInto', { n: item.quantity }) }}
+            {{ item.assignment.mode === 'units' ? t('assign.splitEqually') : t('assign.byUnits') }}
           </button>
         </div>
       </li>

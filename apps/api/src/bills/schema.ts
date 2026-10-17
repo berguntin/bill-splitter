@@ -23,6 +23,10 @@ const AssignmentSchema = z.discriminatedUnion('mode', [
     mode: z.literal('shared'),
     shares: z.array(z.object({ dinerId: id, weight: z.number().positive().max(1000) })).max(50),
   }),
+  z.object({
+    mode: z.literal('units'),
+    units: z.array(z.object({ dinerId: id, count: z.number().int().min(0).max(1000) })).max(50),
+  }),
 ]);
 
 const DinerSchema = z.object({ id, name: label, color: z.string().max(32) });

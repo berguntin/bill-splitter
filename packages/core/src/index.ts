@@ -1,6 +1,6 @@
 export * from './types';
 export { allocate } from './allocate';
-export { adjustmentAmount, computeBreakdown } from './split';
+export { adjustmentAmount, computeBreakdown, unitCount } from './split';
 export type {
   AdjustmentLine,
   Breakdown,
@@ -8,7 +8,15 @@ export type {
   ItemLine,
   UnassignedBreakdown,
 } from './split';
-export { assignedDinerIds, toggleDiner, toggleEveryone } from './assignments';
+export {
+  assignedDinerIds,
+  setUnits,
+  toggleDiner,
+  toggleEveryone,
+  toggleUnitMode,
+  unitsLeft,
+  unitsOf,
+} from './assignments';
 export { anonymizeBill } from './anonymize';
 export { groupDiners, payers, pruneGroups, ungroup } from './groups';
 export type { Payer } from './groups';
