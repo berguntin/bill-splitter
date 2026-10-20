@@ -87,7 +87,7 @@ function undoRemove(): void {
     <div class="flex items-center gap-2.5">
       <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
         <rect width="32" height="32" rx="9" class="fill-accent" />
-        <path d="M10 8h12v16l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z" fill="#fff" />
+        <path d="M10 8h12v16l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z" class="fill-accent-ink" />
       </svg>
       <span class="text-[17px] font-bold tracking-tight">{{ t('common.appName') }}</span>
     </div>
@@ -198,15 +198,17 @@ function undoRemove(): void {
       <SupportLink variant="inline" />
     </section>
 
-    <div
-      v-if="removed"
-      role="status"
-      class="bg-inverse text-inverse-ink fixed inset-x-5 bottom-8 z-10 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
-    >
-      <span>{{ t('home.removed') }}</span>
-      <button type="button" class="font-bold underline underline-offset-2" @click="undoRemove">
-        {{ t('common.undo') }}
-      </button>
+    <!-- The live region stays mounted so screen readers announce what appears in it. -->
+    <div role="status">
+      <div
+        v-if="removed"
+        class="bg-inverse text-inverse-ink fixed inset-x-5 bottom-8 z-10 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
+      >
+        <span>{{ t('home.removed') }}</span>
+        <button type="button" class="font-bold underline underline-offset-2" @click="undoRemove">
+          {{ t('common.undo') }}
+        </button>
+      </div>
     </div>
   </main>
 </template>
