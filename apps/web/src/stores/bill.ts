@@ -32,6 +32,7 @@ const MAX_RECENT_NAMES = 8;
 const TIP_ID = 'tip';
 
 export type Tip = { type: 'percent'; basisPoints: number } | { type: 'amount'; amount: Cents };
+export type TipDistribution = Adjustment['distribution'];
 
 function createId(): string {
   return crypto.randomUUID();
@@ -84,6 +85,12 @@ export const useBillStore = defineStore('bill', () => {
     const adjustment = bill.value.adjustments.find((candidate) => candidate.id === TIP_ID);
     return adjustment ? adjustment.value : null;
   });
+  /** How the tip is shared: by what each diner had (the default) or evenly. */
+  const tipDistribution = computed<TipDistribution>(
+    () =>
+      bill.value.adjustments.find((candidate) => candidate.id === TIP_ID)?.distribution ??
+      'proportional',
+  );
 
   /** Applies a change and records the previous state so it can be undone. */
   function commit(change: (draft: Bill) => void): void {
@@ -304,16 +311,21 @@ export const useBillStore = defineStore('bill', () => {
   }
 
   function setTip(value: Tip | null): void {
+    const distribution = tipDistribution.value;
     commit((draft) => {
       draft.adjustments = draft.adjustments.filter((adjustment) => adjustment.id !== TIP_ID);
       if (value === null) return;
-      const adjustment: Adjustment = {
-        id: TIP_ID,
-        kind: 'tip',
-        value,
-        distribution: 'proportional',
-      };
+      const adjustment: Adjustment = { id: TIP_ID, kind: 'tip', value, distribution };
       draft.adjustments.push(adjustment);
+    });
+  }
+
+  function setTipDistribution(distribution: TipDistribution): void {
+    const current = bill.value.adjustments.find((adjustment) => adjustment.id === TIP_ID);
+    if (!current || current.distribution === distribution) return;
+    commit((draft) => {
+      const adjustment = draft.adjustments.find((candidate) => candidate.id === TIP_ID);
+      if (adjustment) adjustment.distribution = distribution;
     });
   }
 
@@ -334,6 +346,7 @@ export const useBillStore = defineStore('bill', () => {
     pendingItemIds,
     recentNames,
     tip,
+    tipDistribution,
     undo,
     reset,
     restore,
@@ -355,5 +368,6 @@ export const useBillStore = defineStore('bill', () => {
     toggleEveryone,
     assignRestToEveryone,
     setTip,
+    setTipDistribution,
   };
 });

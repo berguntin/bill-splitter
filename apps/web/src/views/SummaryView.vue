@@ -26,6 +26,8 @@ const TIP_OPTIONS = [
   { label: '15%', basisPoints: 1500 },
 ] as const;
 
+const TIP_DISTRIBUTIONS = ['proportional', 'equal'] as const;
+
 const customTipOpen = ref(store.tip?.type === 'amount');
 const customTip = ref(store.tip?.type === 'amount' ? (store.tip.amount / 100).toFixed(2) : '');
 const expanded = ref<string | null>(null);
@@ -221,6 +223,30 @@ async function copy(): Promise<void> {
           @change="saveCustomTip"
         />
       </label>
+      <div v-if="store.tip && store.bill.diners.length > 1" class="flex flex-col gap-1.5">
+        <span id="tip-split" class="text-inverse-muted text-[13px] font-semibold">
+          {{ t('summary.tipSplit') }}
+        </span>
+        <div
+          class="bg-inverse-ink/10 flex rounded-xl p-0.5"
+          role="group"
+          aria-labelledby="tip-split"
+        >
+          <button
+            v-for="distribution in TIP_DISTRIBUTIONS"
+            :key="distribution"
+            type="button"
+            class="h-9 flex-1 rounded-[10px] px-2 text-[13px] font-semibold whitespace-nowrap"
+            :class="
+              store.tipDistribution === distribution ? 'bg-inverse-ink text-inverse font-bold' : ''
+            "
+            :aria-pressed="store.tipDistribution === distribution"
+            @click="store.setTipDistribution(distribution)"
+          >
+            {{ t(`summary.tipSplitOptions.${distribution}`) }}
+          </button>
+        </div>
+      </div>
     </section>
 
     <RouterLink

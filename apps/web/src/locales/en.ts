@@ -278,6 +278,11 @@ const en = {
     tip: 'Tip',
     tipAmount: 'Tip amount',
     tipLine: '+ {amount} tip',
+    tipSplit: 'Split the tip',
+    tipSplitOptions: {
+      equal: 'Evenly',
+      proportional: 'By what each had',
+    },
     title: 'The split',
     total: 'Total',
     totalWithTip: 'Total with tip',
