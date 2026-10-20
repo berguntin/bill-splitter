@@ -186,6 +186,37 @@ describe('useBillStore', () => {
     expect(store.tip).toBeNull();
   });
 
+  it('splits the tip evenly or by what each diner had', () => {
+    const store = useBillStore();
+    const ana = store.addDiner('Ana')!;
+    const bea = store.addDiner('Bea')!;
+    const steak = store.addItem({ name: 'Steak', total: 3000 });
+    const salad = store.addItem({ name: 'Salad', total: 1000 });
+    store.toggleDiner(steak, ana.id);
+    store.toggleDiner(salad, bea.id);
+    store.setTip({ type: 'amount', amount: 400 });
+
+    expect(store.tipDistribution).toBe('proportional');
+    expect(totals(store)).toEqual([3300, 1100]);
+
+    store.setTipDistribution('equal');
+    expect(totals(store)).toEqual([3200, 1200]);
+
+    // Changing the amount keeps the chosen split, and undo brings the old one back.
+    store.setTip({ type: 'percent', basisPoints: 1000 });
+    expect(store.tipDistribution).toBe('equal');
+    store.undo();
+    store.undo();
+    expect(store.tipDistribution).toBe('proportional');
+  });
+
+  it('ignores the tip split while there is no tip', () => {
+    const store = useBillStore();
+    store.setTipDistribution('equal');
+    expect(store.canUndo).toBe(false);
+    expect(store.tipDistribution).toBe('proportional');
+  });
+
   it('stores and clears the receipt total', () => {
     const store = useBillStore();
     store.addItem({ name: 'Menu', total: 3000 });

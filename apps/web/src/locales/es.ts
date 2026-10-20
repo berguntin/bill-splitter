@@ -281,6 +281,11 @@ const es: Messages = {
     tip: 'Propina',
     tipAmount: 'Importe de la propina',
     tipLine: '+ {amount} de propina',
+    tipSplit: 'Repartir la propina',
+    tipSplitOptions: {
+      equal: 'A partes iguales',
+      proportional: 'Según consumo',
+    },
     title: 'El reparto',
     total: 'Total',
     totalWithTip: 'Total con propina',
