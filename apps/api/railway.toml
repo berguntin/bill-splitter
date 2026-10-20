@@ -2,8 +2,10 @@
 # (the whole monorepo is needed) and set the config file to /apps/api/railway.toml.
 
 [build]
-# --prod=false keeps dev dependencies (tsup) even if NODE_ENV=production.
-buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm --filter @bill-splitter/api build"
+# Installs only this service and its workspace dependencies (`...`), and skips
+# type checking, which CI already runs. --prod=false keeps dev dependencies
+# (tsup) even if NODE_ENV=production.
+buildCommand = "pnpm install --frozen-lockfile --prod=false --filter @bill-splitter/api... && pnpm --filter @bill-splitter/api exec tsup"
 watchPatterns = ["apps/api/**", "packages/core/**", "pnpm-lock.yaml"]
 
 [deploy]
