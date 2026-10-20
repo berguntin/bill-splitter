@@ -290,7 +290,11 @@ const en = {
   },
   support: {
     cta: 'Ko-fi',
+    inline: 'Buy me a coffee',
     opensNewTab: '(opens in a new tab)',
+    splitText: 'A {amount} coffee split {n} ways is {share} each.',
+    splitTextApprox: 'A {amount} coffee split {n} ways is about {share} each.',
+    splitTitle: 'A coffee for the app?',
     text: 'This app is free. A coffee helps keep it running.',
     title: 'Saved you the bill math?',
   },

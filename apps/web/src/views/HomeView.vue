@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import LanguagePicker from '@/components/LanguagePicker.vue';
+import SupportLink from '@/components/SupportLink.vue';
 import { money } from '@/lib/format';
 import { reportLocation } from '@/lib/reportContext';
 import { useBillStore } from '@/stores/bill';
@@ -194,6 +195,7 @@ function undoRemove(): void {
           {{ t('common.reportProblem') }}
         </RouterLink>
       </div>
+      <SupportLink variant="inline" />
     </section>
 
     <div

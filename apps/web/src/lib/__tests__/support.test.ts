@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { supportUrl } from '../support';
+import { coffeeSplit, supportUrl } from '../support';
 
 describe('supportUrl', () => {
   it('accepts an https link', () => {
@@ -15,5 +15,19 @@ describe('supportUrl', () => {
     'javascript:alert(1)',
   ])('hides the button for %j', (raw) => {
     expect(supportUrl(raw)).toBeNull();
+  });
+});
+
+describe('coffeeSplit', () => {
+  it('splits evenly when it can', () => {
+    expect(coffeeSplit(4)).toEqual({ amount: 300, share: 75, exact: true });
+  });
+
+  it('rounds the share up when the cents do not divide evenly', () => {
+    expect(coffeeSplit(7)).toEqual({ amount: 300, share: 43, exact: false });
+  });
+
+  it('treats an empty table as one person', () => {
+    expect(coffeeSplit(0)).toEqual({ amount: 300, share: 300, exact: true });
   });
 });
