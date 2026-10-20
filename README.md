@@ -76,17 +76,18 @@ Optional, for error monitoring with Sentry (see [Monitoring](#monitoring)):
 | web     | `VITE_SENTRY_DSN`, and to upload source maps `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` |
 | api     | `SENTRY_DSN`                                                                                     |
 
-To show the "support the app" link on the share screen and on the guest view,
-set `VITE_KOFI_URL=https://ko-fi.com/<your page>` on the web service. Without
-it, the link is hidden.
+To show the "support the app" link (home footer, summary, share screen and
+guest view), set `VITE_KOFI_URL=https://ko-fi.com/<your page>` on the web
+service. Without it, the link is hidden.
 
 Railway runs the root `build` and `start` scripts; `SERVICE` picks which app is
-built (without type checking, which CI runs) and started. Optionally point each
-service's Railway Config File to `/apps/web/railway.toml` or
-`/apps/api/railway.toml` for per-service builds,
-watch paths and health checks. Don't set custom build or start commands in the
-dashboard: they override both. `VITE_*` variables are read at build time, so
-redeploy the web service after changing it.
+built (without type checking, which CI runs) and started. Don't set custom
+build or start commands in the dashboard: they would bypass that. In each
+service's settings, set the health check path (`/` for web, `/api/health` for
+api) and, if available, watch paths (`/apps/web/**` or `/apps/api/**`, plus
+`/packages/core/**`, `/pnpm-lock.yaml`, `/package.json` and `/scripts/**`), so a
+change to one app does not redeploy the other. `VITE_*` variables are read at
+build time, so redeploy the web service after changing them.
 
 ## Monitoring
 
