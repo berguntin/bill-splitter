@@ -298,7 +298,11 @@ const es: Messages = {
   },
   support: {
     cta: 'Ko-fi',
+    inline: 'Invítame a un café',
     opensNewTab: '(se abre en una pestaña nueva)',
+    splitText: 'Un café de {amount} entre {n} son {share} por cabeza.',
+    splitTextApprox: 'Un café de {amount} entre {n} son unos {share} por cabeza.',
+    splitTitle: '¿Un café para la app?',
     text: 'La app es gratis. Un café ayuda a mantenerla.',
     title: '¿Os ha ahorrado las cuentas?',
   },

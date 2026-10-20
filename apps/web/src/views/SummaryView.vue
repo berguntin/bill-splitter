@@ -7,6 +7,7 @@ import BreakdownLines from '@/components/BreakdownLines.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import PaymentBadge from '@/components/PaymentBadge.vue';
 import StepHeader from '@/components/StepHeader.vue';
+import SupportLink from '@/components/SupportLink.vue';
 import { joinNames, money } from '@/lib/format';
 import { summaryText } from '@/lib/summaryText';
 import SelectMark from '@/components/SelectMark.vue';
@@ -248,6 +249,8 @@ async function copy(): Promise<void> {
         </div>
       </div>
     </section>
+
+    <SupportLink :people="store.bill.diners.length" :currency="currency" />
 
     <RouterLink
       v-if="store.breakdown.unassigned.total !== 0"
