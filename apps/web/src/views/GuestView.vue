@@ -16,6 +16,7 @@ import DinerAvatar from '@/components/DinerAvatar.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import PaymentBadge from '@/components/PaymentBadge.vue';
+import SupportLink from '@/components/SupportLink.vue';
 import SelectMark from '@/components/SelectMark.vue';
 import { usePayTogether } from '@/composables/usePayTogether';
 import { useSharedBill } from '@/composables/useSharedBill';
@@ -501,18 +502,21 @@ function pick(diner: Diner): void {
         </div>
       </Transition>
 
-      <p v-if="!selecting" class="text-ink-muted mt-auto pt-6 text-center text-[13px]">
-        {{ t('guest.splitWith') }}
-        <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold">{{
-          t('common.appName')
-        }}</RouterLink>
-        ·
-        <RouterLink
-          :to="reportLocation(route.fullPath, { topic: 'share' })"
-          class="font-semibold"
-          >{{ t('common.reportProblem') }}</RouterLink
-        >
-      </p>
+      <div v-if="!selecting" class="mt-auto flex flex-col gap-4 pt-6">
+        <SupportLink />
+        <p class="text-ink-muted text-center text-[13px]">
+          {{ t('guest.splitWith') }}
+          <RouterLink :to="{ name: 'home' }" class="text-accent-text font-bold">{{
+            t('common.appName')
+          }}</RouterLink>
+          ·
+          <RouterLink
+            :to="reportLocation(route.fullPath, { topic: 'share' })"
+            class="font-semibold"
+            >{{ t('common.reportProblem') }}</RouterLink
+          >
+        </p>
+      </div>
     </template>
   </main>
 </template>

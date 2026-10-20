@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   /** Sentry project DSN (Vue). Without it, errors are not reported. */
   readonly VITE_SENTRY_DSN?: string;
+  /** Ko-fi page (https) for the support link. Without it, the link is hidden. */
+  readonly VITE_KOFI_URL?: string;
 }
 
 /** Commit the app was built from, or `dev`. */
