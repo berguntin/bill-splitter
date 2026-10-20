@@ -18,6 +18,10 @@ export function supportUrl(raw: string | undefined): string | null {
 
 export const SUPPORT_URL = supportUrl(import.meta.env.VITE_KOFI_URL);
 
+/** The author's profiles, linked from the credits in the home footer. */
+export const AUTHOR_URL = 'https://github.com/berguntin';
+export const HIRE_URL = 'https://www.linkedin.com/in/berguntin/';
+
 /** Suggested donation, a coffee, in minor units of the bill's currency. */
 export const COFFEE: Cents = 300;
 
