@@ -52,6 +52,12 @@ const es: Messages = {
     undo: 'Deshacer',
     whoPaysTogether: '¿Quién paga junto?',
   },
+  credits: {
+    coffee: 'invítame a un café',
+    hire: 'contrátame',
+    line: 'Hecho con ❤️ por {author}. Si te ha gustado, {coffee} o, mejor aún, {hire}.',
+    lineNoCoffee: 'Hecho con ❤️ por {author}. Si te ha gustado, {hire}.',
+  },
   diners: {
     add: 'Añadir persona',
     addOne: 'Añade al menos una persona',
@@ -297,14 +303,13 @@ const es: Messages = {
     unassigned: 'Sin asignar todavía: {amount}',
   },
   support: {
-    cta: 'Ko-fi',
-    inline: 'Invítame a un café',
+    cta: 'Invitar',
     opensNewTab: '(se abre en una pestaña nueva)',
-    splitText: 'Un café de {amount} entre {n} son {share} por cabeza.',
-    splitTextApprox: 'Un café de {amount} entre {n} son unos {share} por cabeza.',
-    splitTitle: '¿Un café para la app?',
-    text: 'La app es gratis. Un café ayuda a mantenerla.',
-    title: '¿Os ha ahorrado las cuentas?',
+    splitText: 'A {share} por cabeza y me alegráis el día',
+    splitTextApprox: 'A unos {share} por cabeza y me alegráis el día',
+    splitTitle: '¿Me invitáis a un café?',
+    text: 'La hago en mis ratos libres y sin anuncios. Un café me alegra el día ☕',
+    title: '¿Te he ahorrado las cuentas?',
   },
 };
 

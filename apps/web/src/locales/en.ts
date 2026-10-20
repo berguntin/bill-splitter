@@ -53,6 +53,12 @@ const en = {
     undo: 'Undo',
     whoPaysTogether: 'Who pays together?',
   },
+  credits: {
+    coffee: 'buy me a coffee',
+    hire: 'hire me',
+    line: 'Made with ❤️ by {author}. If you liked it, {coffee} or, better yet, {hire}.',
+    lineNoCoffee: 'Made with ❤️ by {author}. If you liked it, {hire}.',
+  },
   diners: {
     add: 'Add person',
     addOne: 'Add at least one person',
@@ -294,14 +300,13 @@ const en = {
     unassigned: 'Not assigned yet: {amount}',
   },
   support: {
-    cta: 'Ko-fi',
-    inline: 'Buy me a coffee',
+    cta: 'Treat me',
     opensNewTab: '(opens in a new tab)',
-    splitText: 'A {amount} coffee split {n} ways is {share} each.',
-    splitTextApprox: 'A {amount} coffee split {n} ways is about {share} each.',
-    splitTitle: 'A coffee for the app?',
-    text: 'This app is free. A coffee helps keep it running.',
-    title: 'Saved you the bill math?',
+    splitText: 'Just {share} each and you’ll make my day ☕',
+    splitTextApprox: 'About {share} each and you’ll make my day ☕',
+    splitTitle: 'Chip in for my coffee?',
+    text: 'I build it in my free time, with no ads. A coffee makes my day ☕',
+    title: 'Did I save you the math?',
   },
 };
 

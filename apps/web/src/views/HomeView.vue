@@ -3,9 +3,9 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
+import CreditsLine from '@/components/CreditsLine.vue';
 import DinerAvatar from '@/components/DinerAvatar.vue';
 import LanguagePicker from '@/components/LanguagePicker.vue';
-import SupportLink from '@/components/SupportLink.vue';
 import { money } from '@/lib/format';
 import { reportLocation } from '@/lib/reportContext';
 import { useBillStore } from '@/stores/bill';
@@ -195,7 +195,7 @@ function undoRemove(): void {
           {{ t('common.reportProblem') }}
         </RouterLink>
       </div>
-      <SupportLink variant="inline" />
+      <CreditsLine class="mt-1" />
     </section>
 
     <!-- The live region stays mounted so screen readers announce what appears in it. -->
