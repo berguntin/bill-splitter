@@ -15,10 +15,11 @@ jobs:
     services:
       # Lets the bill store contract tests run against a real MongoDB.
       mongo:
-        # Pinned: mongo:8 now resolves to 8.3.13, which refuses to start on the
-        # runners' Linux 6.19+ kernel (SERVER-121912). Unpin once a fixed
-        # release ships.
-        image: mongo:8.3.11
+        # MongoDB 8.x refuses to start on Linux 6.19+ (SERVER-121912, a TCMalloc
+        # bug with no fixed release yet), and GitHub is rolling out runner
+        # images with that kernel. 7.0 uses the older allocator and is enough
+        # for the contract tests. Move back to 8.x once a fixed release ships.
+        image: mongo:7.0
         ports:
           - 27017:27017
         options: >-
