@@ -308,7 +308,7 @@ const es: Messages = {
     splitText: 'A {share} por cabeza y me alegráis el día',
     splitTextApprox: 'A unos {share} por cabeza y me alegráis el día',
     splitTitle: '¿Me invitáis a un café?',
-    text: 'La hago en mis ratos libres y sin anuncios. Un café me alegra el día ☕',
+    text: 'La hago en mis ratos libres y sin anuncios. Un café me alegra el día',
     title: '¿Te he ahorrado las cuentas?',
   },
 };
