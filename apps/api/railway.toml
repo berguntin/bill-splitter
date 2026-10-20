@@ -2,13 +2,12 @@
 # (the whole monorepo is needed) and set the config file to /apps/api/railway.toml.
 
 [build]
-# Installs only this service and its workspace dependencies (`...`), and skips
-# type checking, which CI already runs. --prod=false keeps dev dependencies
-# (tsup) even if NODE_ENV=production.
-buildCommand = "pnpm install --frozen-lockfile --prod=false --filter @bill-splitter/api... && pnpm --filter @bill-splitter/api exec tsup"
-watchPatterns = ["apps/api/**", "packages/core/**", "pnpm-lock.yaml"]
+# Railpack installs dependencies first; the root build script reads SERVICE
+# and builds only this app (see scripts/build-service.mjs).
+buildCommand = "pnpm run build"
+watchPatterns = ["apps/api/**", "packages/core/**", "pnpm-lock.yaml", "package.json", "scripts/**"]
 
 [deploy]
-startCommand = "pnpm --filter @bill-splitter/api start"
+startCommand = "pnpm run start"
 healthcheckPath = "/api/health"
 restartPolicyType = "ON_FAILURE"
