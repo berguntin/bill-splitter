@@ -76,11 +76,15 @@ Optional, for error monitoring with Sentry (see [Monitoring](#monitoring)):
 | web     | `VITE_SENTRY_DSN`, and to upload source maps `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` |
 | api     | `SENTRY_DSN`                                                                                     |
 
+To show the "support the app" link on the share screen and on the guest view,
+set `VITE_KOFI_URL=https://ko-fi.com/<your page>` on the web service. Without
+it, the link is hidden.
+
 Railway runs the root `build` and `start` scripts; `SERVICE` picks which app
 starts. Optionally point each service's Railway Config File to
 `/apps/web/railway.toml` or `/apps/api/railway.toml` for per-service builds,
 watch paths and health checks. Don't set custom build or start commands in the
-dashboard: they override both. `VITE_API_URL` is read at build time, so
+dashboard: they override both. `VITE_*` variables are read at build time, so
 redeploy the web service after changing it.
 
 ## Monitoring

@@ -288,6 +288,12 @@ const en = {
     headerWithTip: 'Bill split · {total} ({items} + {tip} tip)',
     unassigned: 'Not assigned yet: {amount}',
   },
+  support: {
+    cta: 'Ko-fi',
+    opensNewTab: '(opens in a new tab)',
+    text: 'This app is free. A coffee helps keep it running.',
+    title: 'Saved you the bill math?',
+  },
 };
 
 export default en;

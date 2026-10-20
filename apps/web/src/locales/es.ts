@@ -291,6 +291,12 @@ const es: Messages = {
     headerWithTip: 'Reparto de la cuenta · {total} ({items} + {tip} de propina)',
     unassigned: 'Sin asignar todavía: {amount}',
   },
+  support: {
+    cta: 'Ko-fi',
+    opensNewTab: '(se abre en una pestaña nueva)',
+    text: 'La app es gratis. Un café ayuda a mantenerla.',
+    title: '¿Os ha ahorrado las cuentas?',
+  },
 };
 
 export default es;

@@ -6,6 +6,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import ErrorReference from '@/components/ErrorReference.vue';
 import QrCode from '@/components/QrCode.vue';
 import StepHeader from '@/components/StepHeader.vue';
+import SupportLink from '@/components/SupportLink.vue';
 import { reportLocation } from '@/lib/reportContext';
 import { summaryText } from '@/lib/summaryText';
 import { useBillStore } from '@/stores/bill';
@@ -153,6 +154,8 @@ async function sendInChat(): Promise<void> {
       </svg>
       {{ t('share.guestsCanView') }}
     </p>
+
+    <SupportLink />
 
     <div class="bg-surface sticky bottom-0 mt-auto pt-3 pb-8">
       <button type="button" class="btn-primary" :disabled="!shareStore.url" @click="sendInChat">
