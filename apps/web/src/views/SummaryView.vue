@@ -217,7 +217,7 @@ async function copy(): Promise<void> {
         <span class="flex-1 text-sm font-semibold">{{ t('summary.tipAmount') }}</span>
         <input
           v-model="customTip"
-          class="bg-inverse-ink/10 text-inverse-ink h-11 w-28 rounded-xl px-3 text-right font-semibold tabular-nums outline-none"
+          class="bg-inverse-ink/10 text-inverse-ink h-11 w-28 rounded-xl px-3 text-right font-semibold tabular-nums"
           type="text"
           inputmode="decimal"
           placeholder="0.00"
@@ -412,28 +412,30 @@ async function copy(): Promise<void> {
       </RouterLink>
     </div>
 
-    <Transition
-      enter-from-class="opacity-0 translate-y-2"
-      leave-to-class="opacity-0 translate-y-2"
-      enter-active-class="transition"
-      leave-active-class="transition"
-    >
-      <div
-        v-if="toast"
-        role="status"
-        class="bg-inverse text-inverse-ink fixed inset-x-5 bottom-28 mx-auto flex max-w-sm items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
-        :class="toast.undo ? 'justify-between' : 'justify-center'"
+    <!-- The live region stays mounted so screen readers announce what appears in it. -->
+    <div role="status">
+      <Transition
+        enter-from-class="opacity-0 translate-y-2"
+        leave-to-class="opacity-0 translate-y-2"
+        enter-active-class="transition"
+        leave-active-class="transition"
       >
-        <span>{{ toast.message }}</span>
-        <button
-          v-if="toast.undo"
-          type="button"
-          class="text-inverse-ink shrink-0 font-bold underline underline-offset-2"
-          @click="undo"
+        <div
+          v-if="toast"
+          class="bg-inverse text-inverse-ink fixed inset-x-5 bottom-28 mx-auto flex max-w-sm items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
+          :class="toast.undo ? 'justify-between' : 'justify-center'"
         >
-          {{ t('common.undo') }}
-        </button>
-      </div>
-    </Transition>
+          <span>{{ toast.message }}</span>
+          <button
+            v-if="toast.undo"
+            type="button"
+            class="text-inverse-ink shrink-0 font-bold underline underline-offset-2"
+            @click="undo"
+          >
+            {{ t('common.undo') }}
+          </button>
+        </div>
+      </Transition>
+    </div>
   </main>
 </template>

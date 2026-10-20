@@ -125,12 +125,12 @@ function saveReceiptTotal(): void {
           <span class="flex-1 text-[15px] font-semibold">{{ item.name }}</span>
           <label
             v-if="item.needsReview"
-            class="border-warning-line bg-surface-raised flex items-center rounded-[10px] border-[1.5px] px-2 py-1"
+            class="border-warning-line bg-surface-raised focus-within:border-ink flex items-center rounded-[10px] border-[1.5px] px-2 py-1"
           >
             <span class="sr-only">{{ t('items.priceOf', { name: item.name }) }}</span>
             <input
               :value="draftFor(item)"
-              class="w-16 bg-transparent text-right text-[15px] font-semibold tabular-nums outline-none"
+              class="w-16 bg-transparent text-right text-base font-semibold tabular-nums outline-none"
               type="text"
               inputmode="decimal"
               @input="drafts[item.id] = ($event.target as HTMLInputElement).value"
@@ -175,6 +175,8 @@ function saveReceiptTotal(): void {
           :placeholder="t('items.itemPlaceholder')"
           autocomplete="off"
           enterkeyhint="next"
+          :aria-invalid="error === t('items.errorName') || undefined"
+          :aria-describedby="error ? 'item-error' : undefined"
         />
       </label>
       <div class="flex gap-3">
@@ -199,10 +201,17 @@ function saveReceiptTotal(): void {
             placeholder="0.00"
             autocomplete="off"
             enterkeyhint="done"
+            :aria-invalid="error === t('items.errorPrice') || undefined"
+            :aria-describedby="error ? 'item-error' : undefined"
           />
         </label>
       </div>
-      <p v-if="error" class="text-warning-ink text-[13px] font-semibold" role="alert">
+      <p
+        v-if="error"
+        id="item-error"
+        class="text-warning-ink text-[13px] font-semibold"
+        role="alert"
+      >
         {{ error }}
       </p>
       <button type="submit" class="btn-secondary bg-inverse text-inverse-ink border-inverse h-12">
