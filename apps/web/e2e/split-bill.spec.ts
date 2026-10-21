@@ -34,14 +34,22 @@ test('splits a bill entered by hand and keeps it after a reload', async ({ page 
   await expect(page.getByRole('button', { name: '3 items left to assign' })).toBeDisabled();
   await itemCard(page, 'Pizza').getByRole('button', { name: 'All' }).click();
   await itemCard(page, 'Wine').getByRole('button', { name: 'By units' }).click();
+  // Items are assigned one person at a time, starting with the first one.
+  await expect(page.getByRole('radio', { name: /Ana/ })).toBeChecked();
   await itemCard(page, 'Wine').getByRole('button', { name: 'One more for Ana' }).click();
+  await page.getByRole('button', { name: 'Next: Ben' }).click();
+  await expect(page.getByRole('radio', { name: /Ben/ })).toBeChecked();
   await itemCard(page, 'Wine').getByRole('button', { name: 'One more for Ben' }).click();
-  await itemCard(page, 'Water').getByRole('button', { name: 'Ana' }).click();
+  await page.getByRole('radio', { name: /Ana/ }).click();
+  await itemCard(page, 'Water').getByRole('button', { name: 'Ana had Water' }).click();
+  await expect(
+    itemCard(page, 'Water').getByRole('button', { name: 'Ana had Water' }),
+  ).toHaveAttribute('aria-pressed', 'true');
 
   // Undo the last tap and redo it, to cover the undo button.
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByRole('button', { name: '1 item left to assign' })).toBeVisible();
-  await itemCard(page, 'Water').getByRole('button', { name: 'Ana' }).click();
+  await itemCard(page, 'Water').getByRole('button', { name: 'Ana had Water' }).click();
   await page.getByRole('link', { name: 'See the split' }).click();
 
   // Summary: 12.00 shared, 4.50 wine each, water for Ana, plus a 10% tip.
