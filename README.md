@@ -2,35 +2,118 @@
 
 Scan a restaurant receipt, tap who had what, and see exactly what each person owes.
 
-> Status: early development. Receipts can be scanned or entered by hand, split,
-> and shared with the table through a QR code. See the [roadmap](docs/ROADMAP.md)
-> and the [API reference](docs/API.md).
+Receipts can be scanned or entered by hand, split, and shared with the table
+through a QR code. See the [roadmap](docs/ROADMAP.md) and the
+[API reference](docs/API.md).
 
-## Features (planned)
+| Home                                                  | Check the items                                          | Who had what                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| ![Home screen](docs/screenshots/home.png)             | ![Reviewing scanned items](docs/screenshots/review.png)  | ![Assigning items one person at a time](docs/screenshots/assign.png) |
+| **The split**                                         | **Share with the table**                                 | **Guest view**                                                       |
+| ![The split with a tip](docs/screenshots/summary.png) | ![QR code to share the bill](docs/screenshots/share.png) | ![What a guest owes on their phone](docs/screenshots/guest.png)      |
+
+## Features
 
 - **Receipt scanning**: take a photo and get every line item and its price.
-- **Flexible assignment**: an item can belong to one diner, be shared by a few
-  (with custom weights) or be split among everyone at the table.
+  Lines that were hard to read are highlighted for a person to check.
+- **One person at a time**: pick a diner, tap what they had, move on to the
+  next. An item can belong to one diner, be shared by a few, be split among
+  everyone, or be counted unit by unit ("5× Beer").
+- **Undo**: every change on the assignment and summary screens can be undone.
 - **Tips and discounts**: split proportionally to consumption or evenly.
 - **Cent-perfect totals**: every split adds up to the receipt total, always.
-- **Share via QR**: everyone at the table can follow the split from their phone.
+- **Share via QR**: everyone at the table follows the split from their phone,
+  with no account and nothing to install.
 - **Pay together**: group a couple or friends so they settle up as one.
+- **Mark as paid**: guests mark their share as paid, and the owner sees it live.
 - **Live updates**: shared bills update on every phone within a second.
+- **Recent bills**: the last 20 bills split on the device can be reopened.
 - **English and Spanish**: picked from the browser's languages, switchable on
   the home screen.
+- **Report a problem**: from any screen, with optional context attached.
 
-## Repository layout
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Phone["Owner's phone"]
+    Web["Web app<br/>Vue 3 + Pinia"]
+    LS[("localStorage<br/>current and recent bills")]
+  end
+  subgraph Guests["Guests' phones"]
+    Guest["Guest view<br/>/b/:id"]
+  end
+  subgraph Server["API (Express)"]
+    Receipts["/api/receipts"]
+    Bills["/api/bills"]
+    Reports["/api/reports"]
+    Events["Change events<br/>(in process)"]
+  end
+  Core["packages/core<br/>split engine"]
+  Claude["Claude<br/>Haiku, then Sonnet"]
+  Mongo[("MongoDB<br/>bills, reports")]
+  GitHub["GitHub issues"]
+
+  Web <--> LS
+  Web -- "photo" --> Receipts --> Claude
+  Web -- "bill + owner token" --> Bills
+  Guest -- "groups, payments" --> Bills
+  Bills --> Mongo
+  Bills --> Events -- "server-sent events" --> Guest
+  Events -- "server-sent events" --> Web
+  Reports --> Mongo
+  Reports --> GitHub
+  Core -.-> Web
+  Core -.-> Guest
+  Core -.-> Bills
+```
 
 ```
 apps/
   web/        Vue 3 + Vite + TypeScript + Tailwind CSS front end
-  api/        Node + Express API (receipt parsing, shared bills)
+  api/        Node + Express API (receipt parsing, shared bills, bug reports)
 packages/
   core/       Framework-agnostic domain model and split engine
 ```
 
-All money logic lives in `packages/core` and is shared by the web app and the
-API, so both always agree on the numbers.
+**`packages/core`** holds the domain model (bills, diners, items, assignments,
+adjustments, groups, payments) and every money calculation: allocation,
+breakdowns, receipt checks and anonymization. It has no framework or I/O
+dependencies, and both the web app and the API import it, so they always agree
+on the numbers. The API, for example, recomputes what each diner owes when they
+mark a payment instead of trusting the client.
+
+**`apps/web`** is a local-first single-page app. The bill being split lives in a
+Pinia store (`stores/bill.ts`) that is saved to `localStorage` on every change
+and keeps an undo history, so the whole flow (enter or scan items, add diners,
+assign, see the split) works offline and survives a reload. Each screen is a
+view under `src/views`, and the views only orchestrate `core`. Recent bills are
+kept on the device (`stores/history.ts`) and never sent anywhere.
+
+**Sharing** is opt-in. When the owner shares a bill, `stores/share.ts` creates it
+on the API (`POST /api/bills`), keeps the returned owner token on the device,
+and pushes later edits with it (`PUT /api/bills/:id`). Guests open `/b/:id`,
+which follows the bill through server-sent events with ETag polling as a
+fallback (`composables/useSharedBill.ts`). Guests can't edit items or prices:
+they can only say who pays together and mark their share as paid, through
+narrow endpoints that apply the change on the latest version of the bill and
+retry on conflicts.
+
+**`apps/api`** is an Express app wired in `app.ts`:
+
+- `routes/receipts.ts` sends the photo to Claude and validates the structured
+  result (see [How receipts are read](#how-receipts-are-read)). Photos are
+  never stored.
+- `routes/bills.ts` stores shared bills in MongoDB, or in memory during
+  development, and they expire 7 days after their last change.
+  `bills/events.ts` notifies open pages of every change. The events live in
+  process, so running several API instances would need a shared channel such
+  as MongoDB change streams. Until then, clients still catch up through
+  polling.
+- `routes/reports.ts` stores bug reports for 90 days and opens or updates a
+  GitHub issue for each kind of failure.
+- `observability/` adds request ids, JSON logs and Sentry (see
+  [Monitoring](#monitoring)).
 
 ## Getting started
 
