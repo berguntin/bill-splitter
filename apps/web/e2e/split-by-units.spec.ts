@@ -17,15 +17,17 @@ test('splits a multi-unit line by how many units each person had', async ({ page
   await page.getByRole('button', { name: 'By units' }).click();
   await expect(page.getByText('5 of 5 still to claim')).toBeVisible();
   await page.getByRole('button', { name: 'One more for Ana' }).click();
+  await page.getByRole('radio', { name: /Ben/ }).click();
   await page.getByRole('button', { name: 'One more for Ben' }).click();
   await page.getByRole('button', { name: 'One more for Ben' }).click();
   await expect(page.getByText('2 of 5 still to claim')).toBeVisible();
   await expect(page.getByRole('button', { name: '1 item left to assign' })).toBeDisabled();
 
+  await page.getByRole('radio', { name: /Cleo/ }).click();
   await page.getByRole('button', { name: 'One more for Cleo' }).click();
   await page.getByRole('button', { name: 'One more for Cleo' }).click();
   // Every unit is claimed: no more can be added.
-  await expect(page.getByRole('button', { name: 'One more for Ana' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'One more for Cleo' })).toBeDisabled();
   await expect(page.getByText('Ana ×1 · Ben ×2 · Cleo ×2')).toBeVisible();
 
   // Undo takes back the last unit.

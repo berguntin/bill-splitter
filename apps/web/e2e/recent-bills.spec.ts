@@ -10,7 +10,7 @@ async function splitOneItem(page: Page, item: string, total: string, person: str
   await page.getByPlaceholder('Add a name').fill(person);
   await page.getByRole('button', { name: 'Add person' }).click();
   await page.getByRole('link', { name: 'Continue with 1 person' }).click();
-  await page.getByRole('button', { name: person, exact: true }).click();
+  await page.getByRole('button', { name: `${person} had ${item}` }).click();
   await page.getByRole('link', { name: 'See the split' }).click();
   await expect(page.getByRole('heading', { name: 'The split' })).toBeVisible();
 }
