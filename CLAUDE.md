@@ -1,15 +1,26 @@
-# Conventions
+@AGENTS.md
 
-- Everything in this repository is written in English: code, identifiers,
-  comments, commit messages and documentation.
-- UI copy is never hard-coded: it goes through vue-i18n (`t('screen.key')`)
-  with the English text in `apps/web/src/locales/en.ts` and its translation in
-  `es.ts` (type checking requires every key in both).
-- Money is always an integer number of cents (`Cents`). Never use floats for
-  amounts, and divide amounts only through `allocate()` from `@bill-splitter/core`.
-- Domain and money logic belongs in `packages/core`, which must stay free of
-  framework and I/O dependencies. Apps only orchestrate it.
-- Components use the semantic design tokens from `apps/web/src/assets/main.css`
-  (`bg-surface`, `text-ink-muted`, `bg-accent`, ...), never raw colors.
-- Run `pnpm check` before committing; CI runs the same checks plus the build.
-- Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, ...).
+# Claude Code
+
+Project rules live in `AGENTS.md` (imported above). This section only covers
+what is specific to Claude Code.
+
+- Before saying a change is done, run `/verify` (skill in
+  `.claude/skills/verify`): it runs the CI checks and scans the diff.
+- Before committing, run the `reviewer` subagent on the diff.
+- Also run each specialized reviewer whose area the change touches:
+  - `money-reviewer`: `packages/core`, or any code that computes, parses,
+    formats or splits amounts.
+  - `sharing-reviewer`: shared bills (`apps/api/src/bills`,
+    `apps/api/src/routes/bills.ts`, `apps/web/src/stores/share.ts`,
+    `apps/web/src/lib/followSharedBill.ts`, `GuestView.vue`).
+  - `persistence-reviewer`: MongoDB stores or documents, or anything saved in
+    `localStorage`.
+  - `privacy-reviewer`: logging, Sentry, bug reports, anything that handles
+    names, photos, emails or tokens.
+  - `receipts-reviewer`: `apps/api/src/receipts`, the scan route or
+    `apps/web/src/lib/compressImage.ts`.
+  - `ui-reviewer`: `.vue` files, locales, `assets/main.css` or e2e specs.
+- The web dev server is configured in `.claude/launch.json` (`web`, port 5173);
+  it proxies `/api` to the API on port 3000, so start the API too
+  (`pnpm dev` runs both).
