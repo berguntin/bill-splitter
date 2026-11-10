@@ -131,16 +131,16 @@ copy `apps/api/.env.example` to `apps/api/.env` and set `ANTHROPIC_API_KEY`.
 Shared bills are kept in memory unless `MONGODB_URI` points to a MongoDB
 database (required in production).
 
-| Command                                     | What it does                               |
-| ------------------------------------------- | ------------------------------------------ |
-| `pnpm dev`                                  | Runs the web app and the API in watch mode |
-| `pnpm test`                                 | Runs every package's unit tests            |
-| `pnpm --filter @bill-splitter/web test:e2e` | Runs the browser tests (Playwright)        |
-| `pnpm typecheck`                            | Type-checks every package                  |
-| `pnpm lint`                                 | Lints the whole repository                 |
-| `pnpm format`                               | Formats the whole repository with Prettier |
-| `pnpm check`                                | Everything CI runs, except the build       |
-| `pnpm build`                                | Builds the web app and the API             |
+| Command                                     | What it does                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `pnpm dev`                                  | Runs the web app and the API in watch mode                         |
+| `pnpm test`                                 | Runs every package's unit tests                                    |
+| `pnpm --filter @bill-splitter/web test:e2e` | Runs the browser tests (Playwright)                                |
+| `pnpm typecheck`                            | Type-checks every package                                          |
+| `pnpm lint`                                 | Lints the whole repository                                         |
+| `pnpm format`                               | Formats the whole repository with Prettier                         |
+| `pnpm check`                                | Format, lint, types and unit tests (CI runs more, see `AGENTS.md`) |
+| `pnpm build`                                | Builds the web app and the API                                     |
 
 ## Deploying on Railway
 
